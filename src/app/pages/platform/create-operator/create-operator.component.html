@@ -1,0 +1,60 @@
+<header class="platform-topbar"><div><p class="platform-eyebrow">Alta administrativa</p><h1>Crear operador</h1></div></header>
+
+<form class="platform-form" (submit)="onSubmit($event)" novalidate>
+  <section>
+    <p class="platform-eyebrow">01. Identidad del operador</p>
+    <h2>Datos del operador</h2>
+    <p class="platform-section-copy">El identificador es único y mantiene aislada la operación de esta empresa dentro de Multitour.</p>
+    <div class="platform-form-grid">
+      <label><span>Nombre comercial</span><input name="commercialName" type="text" placeholder="Ej. Andes Vivo" /></label>
+      <label><span>Identificador único</span><input name="tenantId" type="text" placeholder="Ej. andes-vivo" /></label>
+      <label><span>Estado inicial</span>
+        <select name="status">
+          <option value="Activo">Activo</option>
+          <option value="Inactivo">Inactivo</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section>
+    <p class="platform-eyebrow">02. Responsable inicial</p>
+    <h2>Primer Administrador</h2>
+    <p class="platform-section-copy">Todo operador debe iniciar con al menos un Administrador.</p>
+    <div class="platform-form-grid">
+      <label><span>Nombre completo</span><input name="adminName" type="text" placeholder="Ej. Laura Gomez" /></label>
+      <label><span>Correo electrónico</span><input name="adminEmail" type="email" placeholder="laura@andesvivo.co" /></label>
+      <label>
+        <span>Contraseña inicial</span>
+        <div class="travel-login-password-wrap">
+          <input name="initialPassword" [type]="passwordVisible() ? 'text' : 'password'" placeholder="Ingresa la contraseña" autocomplete="new-password" />
+          <button class="travel-login-visibility" type="button" (click)="togglePasswordVisibility()">Ver</button>
+        </div>
+      </label>
+      <label>
+        <span>Confirmar contraseña</span>
+        <div class="travel-login-password-wrap">
+          <input name="confirmPassword" [type]="confirmVisible() ? 'text' : 'password'" placeholder="Repite la contraseña" autocomplete="new-password" />
+          <button class="travel-login-visibility" type="button" (click)="toggleConfirmVisibility()">Ver</button>
+        </div>
+      </label>
+    </div>
+    <div class="password-policy platform-password-policy" aria-label="Requisitos de la contrasena">
+      <p>La contrasena debe contener:</p>
+      <ul>
+        <li>Minimo 8 caracteres</li>
+        <li>Al menos una letra mayuscula</li>
+        <li>Al menos una letra minuscula</li>
+        <li>Al menos un numero</li>
+        <li>Al menos un caracter especial</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="feedback" [class.is-error]="feedbackIsError()" [class.is-success]="!feedbackIsError() && feedback()" aria-live="polite">{{ feedback() }}</p>
+
+  <div class="platform-form-actions">
+    <a class="platform-link platform-form-cancel" routerLink="/platform/operators">Cancelar</a>
+    <button class="platform-primary" type="submit">Crear operador y asignar Administrador</button>
+  </div>
+</form>

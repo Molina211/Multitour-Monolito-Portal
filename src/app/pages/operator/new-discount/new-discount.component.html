@@ -1,0 +1,38 @@
+<header class="operator-topbar"><div><p class="operator-eyebrow">Reglas comerciales</p><h1>Nuevo descuento</h1></div><a class="operator-outline" routerLink="/operator/discounts">Volver a descuentos</a></header>
+
+<form class="operator-reservation-form" (submit)="onSubmit($event)" novalidate>
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Parámetros del descuento</p><h2>Configura la promoción</h2>
+    <div class="operator-form-grid">
+      <label>Servicio o producto
+        <select name="service" required>
+          @for (option of serviceOptions; track option.key) {
+            <option [value]="option.key">{{ option.label }}</option>
+          }
+        </select>
+      </label>
+      <label>Porcentaje de descuento<input name="percentage" required type="number" min="1" max="100" inputmode="numeric" /></label>
+      <label>Vigencia desde<input name="start" required type="date" /></label>
+      <label>Vigencia hasta<input name="end" required type="date" /></label>
+      <label>Prioridad<input name="priority" required type="number" min="1" step="1" /></label>
+      <label>Acumulable
+        <select name="stackable" required>
+          <option value="no">No</option>
+          <option value="si">Sí</option>
+        </select>
+      </label>
+      <label>Tope del descuento<input name="cap" type="text" placeholder="Opcional, ej. $50.000" /></label>
+      <label>Base de cálculo
+        <select name="base" required>
+          <option value="original">Valor original</option>
+          <option value="subtotal">Subtotal resultante del descuento anterior</option>
+        </select>
+      </label>
+    </div>
+  </section>
+  <p class="operator-form-feedback">{{ feedback() }}</p>
+  <div class="operator-form-actions">
+    <a class="operator-outline" routerLink="/operator/discounts">Cancelar</a>
+    <button class="operator-primary" type="submit">Crear descuento</button>
+  </div>
+</form>

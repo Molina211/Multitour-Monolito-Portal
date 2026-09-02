@@ -1,0 +1,77 @@
+@if (reservation; as reservation) {
+  <header class="operator-topbar">
+    <div><p class="operator-eyebrow">Consulta de reserva</p><h1>Detalle de reserva</h1></div>
+    <a class="operator-outline" routerLink="/operator/reservations">Volver a reservas</a>
+  </header>
+
+  <section class="operator-detail-hero">
+    <div><p class="operator-eyebrow">#{{ code }}</p><h2>{{ reservation.service }}</h2><p>Salida: {{ reservation.date }} · {{ reservation.travelers }} viajeros</p></div>
+    <span class="operator-status" [class]="reservation.statusClass">{{ reservation.status }}</span>
+  </section>
+  <p class="operator-access-note">Consulta disponible únicamente dentro del operador activo. La información sensible de actividades de riesgo se consulta solo cuando la gestión autorizada lo requiere.</p>
+
+  <div class="operator-detail-grid">
+    <section class="operator-panel">
+      <p class="operator-eyebrow">Titular y viajeros</p>
+      <h2>{{ reservation.customer }}</h2>
+      <div class="operator-detail-list">
+        <div><span>Correo</span><strong>{{ reservation.email }}</strong></div>
+        <div><span>Viajeros registrados</span><strong>{{ reservation.travelers }} personas</strong></div>
+        <div><span>Acompañantes</span><strong>{{ reservation.companions }}</strong></div>
+      </div>
+    </section>
+    <section class="operator-panel">
+      <p class="operator-eyebrow">Estado económico</p>
+      <h2>{{ reservation.balance }} {{ reservation.balance === '$0' ? 'sin saldo pendiente' : 'pendientes' }}</h2>
+      <div class="operator-detail-list">
+        <div><span>Valor proyectado</span><strong>{{ reservation.projected }}</strong></div>
+        <div><span>Descuentos aplicados</span><strong>{{ reservation.discount }}</strong></div>
+        <div><span>Valor final</span><strong>{{ reservation.final }}</strong></div>
+        <div><span>Pagado o validado</span><strong>{{ reservation.paid }}</strong></div>
+      </div>
+    </section>
+  </div>
+
+  @if (adjustment; as adjustment) {
+    <section class="operator-panel">
+      <p class="operator-eyebrow">Decisión excepcional</p>
+      <h2>Descuento adicional aplicado</h2>
+      <div class="operator-detail-list">
+        <div><span>Descuento adicional</span><strong>{{ adjustment.percentage }}%</strong></div>
+        <div><span>Motivo</span><strong>{{ adjustment.reason }}</strong></div>
+        <div><span>Valor anterior</span><strong>{{ previousValue() }}</strong></div>
+        <div><span>Valor descontado</span><strong>{{ discountedAmount() }}</strong></div>
+        <div><span>Valor final</span><strong>{{ reservation.final }}</strong></div>
+      </div>
+    </section>
+  }
+
+  <section class="operator-panel">
+    <div class="operator-panel-head"><div><p class="operator-eyebrow">Servicios reservados</p><h2>Proyección comercial</h2></div></div>
+    <div class="operator-table-wrap">
+      <table class="operator-table">
+        <thead><tr><th>Servicio</th><th>Fecha</th><th>Cantidad</th><th>Estado de ejecución</th></tr></thead>
+        <tbody><tr><td><strong>{{ reservation.service }}</strong></td><td>{{ reservation.date }}</td><td>{{ reservation.travelers }} viajeros</td><td>{{ reservation.execution }}</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="operator-panel">
+    <div class="operator-panel-head">
+      <div><p class="operator-eyebrow">Pagos y soportes</p><h2>Seguimiento económico</h2></div>
+      <a class="operator-primary" [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: code }">Gestionar pago</a>
+    </div>
+    <div class="operator-table-wrap">
+      <table class="operator-table">
+        <thead><tr><th>Modalidad</th><th>Estado</th><th>Valor</th><th>Saldo resultante</th></tr></thead>
+        <tbody><tr><td>{{ reservation.method }}</td><td>{{ reservation.payment }}</td><td>{{ reservation.paid }}</td><td>{{ reservation.balance }}</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+} @else {
+  <header class="operator-topbar">
+    <div><p class="operator-eyebrow">Consulta de reserva</p><h1>Detalle de reserva</h1></div>
+    <a class="operator-outline" routerLink="/operator/reservations">Volver a reservas</a>
+  </header>
+  <p class="operator-access-note">No se encontró la reserva #{{ code }}.</p>
+}

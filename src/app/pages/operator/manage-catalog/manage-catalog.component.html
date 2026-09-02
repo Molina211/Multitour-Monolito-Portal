@@ -1,0 +1,24 @@
+<header class="operator-topbar operator-topbar--catalog-management"><div><p class="operator-eyebrow">Catálogos</p><h1>Gestionar catálogo</h1></div><a class="operator-outline" routerLink="/operator/catalog">Volver a catálogos</a></header>
+<section class="operator-panel" data-managed-tour-catalog id="catalogo-catalog-panel">
+  <p class="operator-eyebrow">Tours y atractivos</p><h2>Oferta, salidas y tarifas base</h2>
+  <p class="operator-copy">Desactivar evita nuevas reservas; el historial existente se conserva.</p>
+  <div class="operator-table-wrap">
+    <table class="operator-table">
+      <thead><tr><th>Servicio</th><th>Tarifa base</th><th>Vigencia</th><th>Estado</th><th>Acción</th></tr></thead>
+      <tbody>
+        @for (record of records; track record.key) {
+          <tr>
+            <td>{{ record.fields['name'] }}</td>
+            <td>{{ record.fields['tariff'] }}</td>
+            <td>{{ record.fields['validity'] }}</td>
+            <td><span class="operator-status" [class.is-confirmed]="isActive(record.key, record.active)" [class.is-cancelled]="!isActive(record.key, record.active)">{{ isActive(record.key, record.active) ? 'Activo' : 'Inactivo' }}</span></td>
+            <td>
+              <a class="operator-row-manage">Gestionar</a>
+              <button class="operator-row-toggle" type="button" (click)="toggle(record.key, isActive(record.key, record.active))">{{ isActive(record.key, record.active) ? 'Desactivar' : 'Activar' }}</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

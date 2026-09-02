@@ -1,0 +1,38 @@
+<header class="platform-topbar">
+  <div>
+    <p class="platform-eyebrow">Control de plataforma</p>
+    <h1>Operadores bajo control</h1>
+  </div>
+  <a class="platform-primary" routerLink="/platform/operators/new">Crear operador</a>
+</header>
+
+<section class="platform-intro">
+  <div>
+    <p class="platform-eyebrow">Vista transversal</p>
+    <h2>La plataforma conecta operadores, sin mezclar su operacion.</h2>
+  </div>
+  <p>Administra el alta y estado de cada tenant. Las reservas, pagos y caja pertenecen exclusivamente a cada operador.</p>
+</section>
+
+<section class="platform-metrics" aria-label="Resumen de operadores">
+  <article><span>Operadores activos</span><strong>{{ activeCount() }}</strong><small>Listos para nuevas autenticaciones y reservas</small></article>
+  <article><span>Operadores inactivos</span><strong>{{ inactiveCount() }}</strong><small>Conservan historial y auditoria</small></article>
+  <article><span>Altas este mes</span><strong>{{ totalCount() }}</strong><small>Incluyen su primer administrador</small></article>
+</section>
+
+<section class="platform-panel">
+  <div class="platform-panel-head">
+    <div><p class="platform-eyebrow">Operadores recientes</p><h2>Estado de tenants</h2></div>
+    <a routerLink="/platform/operators">Ver todos</a>
+  </div>
+  <div class="platform-tenant-list">
+    @for (tenant of preview(); track tenant.id) {
+      <a class="platform-tenant-row">
+        <span class="platform-tenant-mark">{{ initial(tenant.name) }}</span>
+        <span><strong>{{ tenant.name }}</strong><small>{{ tenant.id }}</small></span>
+        <span class="platform-status" [class.is-active]="tenant.status === 'Activo'" [class.is-inactive]="tenant.status !== 'Activo'">{{ tenant.status }}</span>
+        <span class="platform-row-arrow" aria-hidden="true">&#8594;</span>
+      </a>
+    }
+  </div>
+</section>

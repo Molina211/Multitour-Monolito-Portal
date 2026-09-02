@@ -1,0 +1,39 @@
+<header class="platform-topbar"><div><p class="platform-eyebrow">Trazabilidad transversal</p><h1>Auditoría de plataforma</h1></div></header>
+
+<section class="platform-intro platform-intro-compact">
+  <div><p class="platform-eyebrow">Eventos relevantes</p><h2>Las decisiones sobre operadores dejan evidencia.</h2></div>
+  <p>Consulta altas, cambios de estado y acciones administrativas relevantes. Esta vista no expone datos operativos de los operadores.</p>
+</section>
+
+<section class="platform-panel">
+  <div class="platform-table-wrap">
+    <table class="platform-table">
+      <thead><tr><th>Fecha y hora</th><th>Acción</th><th>Operador</th><th>Cambio</th><th>Responsable</th><th>Motivo</th><th>Detalle</th></tr></thead>
+      <tbody>
+        @for (event of audit(); track $index) {
+          <tr>
+            <td>{{ event.date }}</td>
+            <td><strong>{{ event.action }}</strong></td>
+            <td>{{ event.tenant }}<small>{{ event.tenantId || 'Sin identificador' }}</small></td>
+            <td>{{ event.detail || 'No aplica' }}</td>
+            <td><strong>{{ event.actorName || 'Fernanda Robayo' }}</strong><small>{{ event.actorRole || 'Administrador de plataforma' }}</small></td>
+            <td>{{ event.reason || 'No aplica' }}</td>
+            <td><button class="platform-table-link" type="button" (click)="openDetail(event)">Ver detalle</button></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<dialog class="platform-audit-dialog" #auditDialog aria-labelledby="platform-audit-dialog-title">
+  <div class="platform-audit-dialog-head">
+    <div><p class="platform-eyebrow">Evento auditado</p><h2 id="platform-audit-dialog-title">Detalle de auditoría</h2></div>
+    <button class="platform-dialog-close" type="button" (click)="closeDetail()" aria-label="Cerrar detalle">Cerrar</button>
+  </div>
+  <dl class="platform-audit-detail-grid">
+    @for (field of detailFields(); track field.label) {
+      <div><dt>{{ field.label }}</dt><dd>{{ field.value }}</dd></div>
+    }
+  </dl>
+</dialog>

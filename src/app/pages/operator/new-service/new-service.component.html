@@ -1,0 +1,55 @@
+<header class="operator-topbar"><div><p class="operator-eyebrow">Catálogo operativo</p><h1>Nuevo servicio</h1></div><a class="operator-outline" routerLink="/operator/catalog">Volver a catálogos</a></header>
+
+<form class="operator-reservation-form" (submit)="onSubmit($event)" novalidate>
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Información comercial</p><h2>Producto disponible para el cliente</h2>
+    <div class="operator-form-grid">
+      <label class="operator-form-wide">¿Qué quieres crear?
+        <select name="kind" (change)="onKindChange($any($event.target).value)">
+          <option value="operational">Servicio operativo (Tour, Hospedaje, Alimentación o Transporte)</option>
+          <option value="establishment">Establecimiento asociado (Hotel o Restaurante externo)</option>
+        </select>
+      </label>
+      <label>Nombre comercial<input name="name" required type="text" placeholder="Nombre del producto" /></label>
+      @if (kind() === 'operational') {
+        <label>Tipo
+          <select name="type" required>
+            <option value="tour">Tour o actividad</option>
+            <option value="lodging">Hospedaje</option>
+            <option value="food">Alimentación</option>
+            <option value="transport">Transporte</option>
+          </select>
+        </label>
+        <label>Tarifa base<input name="price" required type="number" min="1" inputmode="numeric" /></label>
+        <label>Política de cupo
+          <select name="policy" required>
+            <option>Confirmación directa solo con pago válido</option>
+            <option>Apartamiento temporal</option>
+            <option>Sin apartamiento previo</option>
+          </select>
+        </label>
+        <label>Vigencia desde<input name="start" required type="date" /></label>
+        <label>Vigencia hasta<input name="end" required type="date" /></label>
+        <label>Capacidad / cupo<input name="capacity" type="number" min="1" inputmode="numeric" placeholder="Opcional" /></label>
+        <label>Restricciones operativas<textarea name="restrictions" placeholder="Opcional: condiciones que limitan la disponibilidad"></textarea></label>
+      } @else {
+        <label>Tipo de establecimiento
+          <select name="establishmentType" (change)="onEstablishmentTypeChange($any($event.target).value)">
+            <option value="hotel">Hotel asociado</option>
+            <option value="restaurant">Restaurante asociado</option>
+          </select>
+        </label>
+        <label class="operator-form-wide">Información comercial básica<textarea name="establishmentInfo" placeholder="Opcional: dirección, contacto u observaciones de la asociación"></textarea></label>
+      }
+      <label class="operator-form-wide">{{ imageLabel() }}<input name="image" required type="file" accept="image/*" (change)="onImageChange($event)" /></label>
+      @if (previewReady()) {
+        <img [src]="previewSrc()" alt="Vista previa del producto" style="max-width:280px;border-radius:12px" />
+      }
+    </div>
+  </section>
+  <p class="operator-form-feedback">{{ feedback() }}</p>
+  <div class="operator-form-actions">
+    <a class="operator-outline" routerLink="/operator/catalog">Cancelar</a>
+    <button class="operator-primary" type="submit">Guardar y publicar</button>
+  </div>
+</form>

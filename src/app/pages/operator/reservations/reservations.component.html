@@ -1,0 +1,68 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Gestión comercial</p><h1>Reservas</h1></div>
+  <a class="operator-primary" routerLink="/operator/reservations/new">Crear reserva</a>
+</header>
+
+<section class="operator-hero operator-hero-compact">
+  <div><p class="operator-eyebrow">Seguimiento</p><h2>Reserva, capacidad y valores siempre conectados.</h2></div>
+  <p>Las modificaciones permitidas antes de la ejecución recalculan disponibilidad, descuentos y saldo.</p>
+  @if (additionalDiscountMode) {
+    <p>Selecciona la reserva a la que deseas aplicar un descuento adicional.</p>
+  }
+</section>
+
+<section class="operator-panel">
+  <div class="operator-panel-head">
+    <div><p class="operator-eyebrow">Reservas activas</p><h2>Seguimiento de reservas</h2></div>
+    <button class="operator-table-toggle" type="button" [attr.aria-expanded]="showAll()" (click)="toggleScope()">{{ showAll() ? 'Ver reservas activas' : 'Ver todas las reservas' }}</button>
+  </div>
+  <div class="operator-table-wrap">
+    <table class="operator-table">
+      <thead><tr><th>Reserva</th><th>Cliente</th><th>Servicio</th><th>Estado</th><th>Saldo</th><th>Acción</th></tr></thead>
+      <tbody>
+        @if (draft(); as created) {
+          <tr>
+            <td><a class="operator-reservation-link" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: created.code }">#{{ created.code }}</a><small>{{ created.date }} · {{ created.travelers }} viajeros</small></td>
+            <td>{{ created.customer }}</td>
+            <td>{{ created.service }}</td>
+            <td><span class="operator-status" [class]="created.statusClass">{{ created.status }}</span></td>
+            <td>{{ created.balance }}@if (created.hasAdditionalDiscount) {<br /><small>Descuento adicional aplicado</small>}</td>
+            <td>
+              @if (additionalDiscountMode && isEligibleForAdditionalDiscount(created)) {
+                <a [routerLink]="['/operator/reservations/apply-discount']" [queryParams]="{ reservation: created.code }">Aplicar descuento</a>
+              } @else if (created.action === 'Gestionar pago') {
+                <a [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: created.code }">Gestionar pago</a>
+              } @else if (created.action === 'Ver operación') {
+                <a routerLink="/operator/operations">Ver operación</a>
+              } @else {
+                <a>{{ created.action }}</a>
+              }
+            </td>
+          </tr>
+        }
+        @for (reservation of reservations(); track reservation.code) {
+          @if (!isArchived(reservation) || showAll()) {
+            <tr>
+              <td><a class="operator-reservation-link" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: reservation.code }">#{{ reservation.code }}</a><small>{{ reservation.date }} · {{ reservation.travelers }} viajeros</small></td>
+              <td>{{ reservation.customer }}</td>
+              <td>{{ reservation.service }}</td>
+              <td><span class="operator-status" [class]="reservation.statusClass">{{ reservation.status }}</span></td>
+              <td>{{ reservation.balance }}@if (reservation.hasAdditionalDiscount) {<br /><small>Descuento adicional aplicado</small>}</td>
+              <td>
+                @if (additionalDiscountMode && isEligibleForAdditionalDiscount(reservation)) {
+                  <a [routerLink]="['/operator/reservations/apply-discount']" [queryParams]="{ reservation: reservation.code }">Aplicar descuento</a>
+                } @else if (reservation.action === 'Gestionar pago') {
+                  <a [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: reservation.code }">Gestionar pago</a>
+                } @else if (reservation.action === 'Ver operación') {
+                  <a routerLink="/operator/operations">Ver operación</a>
+                } @else {
+                  <a>{{ reservation.action }}</a>
+                }
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

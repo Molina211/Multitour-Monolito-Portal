@@ -1,0 +1,42 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Control de cobro</p><h1>Pagos y devoluciones</h1></div>
+  <a class="operator-primary" routerLink="/operator/reservations">Ver reservas</a>
+</header>
+<section class="operator-hero operator-hero-compact">
+  <div><p class="operator-eyebrow">Validación</p><h2>Confirma pagos sin perder trazabilidad.</h2></div>
+  <p>Valida o rechaza soportes, registra abonos y autoriza devoluciones cuando corresponda.</p>
+</section>
+<section class="operator-panel">
+  <div class="operator-panel-head">
+    <div><p class="operator-eyebrow">Soportes por revisar</p><h2>Transferencias pendientes</h2></div>
+    <span class="operator-status is-pending">{{ pendingCount() }} pendiente{{ pendingCount() === 1 ? '' : 's' }}</span>
+  </div>
+  <div class="operator-table-wrap">
+    <table class="operator-table">
+      <thead><tr><th>Reserva</th><th>Cliente</th><th>Modalidad</th><th>Valor recibido</th><th>Estado</th><th>Acción</th></tr></thead>
+      <tbody>
+        @for (record of pendingRecords(); track record.code) {
+          <tr>
+            <td><strong>#{{ record.code }}</strong></td>
+            <td>{{ record.customer }}</td>
+            <td>{{ record.method }}</td>
+            <td>{{ record.amount }}</td>
+            <td><span class="operator-status is-pending">{{ record.status }}</span></td>
+            <td>
+              @if (record.status === 'En validación') {
+                <button type="button">Validar soporte</button>
+              } @else {
+                <button type="button">Registrar seguimiento</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="operator-panel">
+  <p class="operator-eyebrow">Devoluciones monetarias</p><h2>Autorización requerida</h2>
+  <p class="operator-copy">El Administrador autoriza o registra la devolución, con monto, motivo, reserva y movimiento de caja asociados.</p>
+  <button class="operator-outline" type="button">Consultar solicitudes</button>
+</section>

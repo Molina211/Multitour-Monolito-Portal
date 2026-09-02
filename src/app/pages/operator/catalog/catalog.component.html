@@ -1,0 +1,29 @@
+<header class="operator-topbar"><div><p class="operator-eyebrow">Configuración operativa</p><h1>Catálogos</h1></div><button class="operator-primary" type="button" routerLink="/operator/catalog/new-service">Nuevo servicio</button></header>
+<section class="operator-hero operator-hero-compact"><div><p class="operator-eyebrow">Oferta del operador</p><h2>Servicios listos para reservar.</h2></div><p>Administra atractivos, alimentación, hospedaje, transporte, tarifas base, costos base y capacidad.</p></section>
+
+<section class="operator-catalog-grid">
+  <article><span>TOURS Y ATRACTIVOS</span><strong>{{ toursActiveCount() }} activos</strong><p>Rutas, salidas, tarifas y políticas de cupo.</p><button type="button" routerLink="/operator/catalog/tours">Gestionar catálogo</button></article>
+  <article><span>HOSPEDAJE</span><strong>{{ lodgingActiveCount() }} activo{{ lodgingActiveCount() === 1 ? '' : 's' }}</strong><p>Capacidad, zonas y tarifas disponibles.</p><button type="button" routerLink="/operator/catalog/lodging">Gestionar hospedaje</button></article>
+  <article><span>ALIMENTACIÓN</span><strong>{{ foodActiveCount() }} activo{{ foodActiveCount() === 1 ? '' : 's' }}</strong><p>Platos del día y opciones para reservas.</p><button type="button" routerLink="/operator/catalog/food">Gestionar alimentación</button></article>
+  <article><span>TRANSPORTE</span><strong>1 activo</strong><p>Rutas, costos y capacidad controlada.</p><button type="button">Gestionar transporte</button></article>
+</section>
+
+<section class="operator-panel">
+  <div class="operator-panel-head"><div><p class="operator-eyebrow">Parámetros de capacidad</p><h2>Recursos controlados</h2></div></div>
+  <div class="operator-table-wrap">
+    <table class="operator-table">
+      <thead><tr><th>Servicio</th><th>Tipo</th><th>Política de cupo</th><th>Vigencia</th><th>Estado</th></tr></thead>
+      <tbody>
+        @for (row of summaryRows(); track row.name) {
+          <tr>
+            <td><strong>{{ row.name }}</strong></td>
+            <td>{{ row.type }}</td>
+            <td>{{ row.policy }}</td>
+            <td>{{ row.validity }}</td>
+            <td><span class="operator-status" [class.is-confirmed]="row.active" [class.is-cancelled]="!row.active">{{ row.active ? 'Activo' : 'Inactivo' }}</span></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

@@ -1,0 +1,80 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Seguimiento de reserva</p><h1>Gestión de pago</h1></div>
+</header>
+
+<section class="operator-detail-hero">
+  <div><p class="operator-eyebrow">Reserva</p><h2>#{{ reservation().code }}</h2></div>
+  <span class="operator-status" [class]="reservation().statusClass">{{ reservation().status }}</span>
+</section>
+
+<section class="operator-detail-grid">
+  <article class="operator-panel">
+    <p class="operator-eyebrow">Información de pago</p>
+    <h2>{{ reservation().customer }}</h2>
+    <div class="operator-detail-list">
+      <div><span>Modalidad</span><strong>{{ reservation().method }}</strong></div>
+      <div><span>Estado de pago</span><strong>{{ reservation().payment }}</strong></div>
+      @if (reservation().hasAdditionalDiscount) {
+        <div><span>Descuento adicional</span><strong>Aplicado</strong></div>
+      }
+    </div>
+  </article>
+  <article class="operator-panel">
+    <p class="operator-eyebrow">Estado económico</p>
+    <h2>{{ reservation().balance }}</h2>
+    <div class="operator-detail-list">
+      <div><span>Valor final</span><strong>{{ reservation().final }}</strong></div>
+      <div><span>Saldo pendiente</span><strong>{{ reservation().balance }}</strong></div>
+    </div>
+  </article>
+</section>
+
+<section class="operator-panel operator-next-panel">
+  <p class="operator-eyebrow">Acción de pago</p>
+  <h2>{{ paymentHeading() }}</h2>
+  <p class="operator-copy">La condición parametrizada de esta reserva exige el pago total para confirmarla. El flujo se ajusta a la modalidad habilitada.</p>
+
+  @if (!isSettled()) {
+    <form class="operator-form-grid" (submit)="onSubmit($event)">
+      <label class="operator-form-wide">
+        {{ amountPlaceholder() }}
+        <input
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          required
+          [placeholder]="amountPlaceholder()"
+          [value]="amount()"
+          [disabled]="!hasSupportedMethod() || isPendingValidation()"
+          (input)="amount.set($any($event.target).value)"
+        />
+      </label>
+      @if (isTransfer()) {
+        <label class="operator-form-wide">
+          Soporte de transferencia
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png" [required]="isTransfer()" [disabled]="isPendingValidation()" (change)="onSupportChange($any($event.target).files)" />
+        </label>
+      }
+      <p class="operator-form-feedback operator-form-wide" [class.is-valid]="feedbackIsValid()">{{ feedback() }}</p>
+      <div class="operator-form-actions operator-payment-actions operator-form-wide">
+        <a class="operator-outline" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: reservation().code }">Volver a la reserva</a>
+        <button class="operator-primary" type="submit" [disabled]="!hasSupportedMethod() || isPendingValidation()">{{ submitLabel() }}</button>
+      </div>
+    </form>
+  } @else {
+    <div class="operator-payment-completed">
+      <p>No existen valores pendientes por registrar para esta reserva.</p>
+      <div><span>Monto recibido</span><strong>{{ reservation().paid }}</strong></div>
+    </div>
+    <div class="operator-form-actions operator-payment-actions">
+      <a class="operator-outline">Volver a la reserva</a>
+    </div>
+  }
+
+  @if (showReview()) {
+    <div class="operator-form-actions operator-payment-review">
+      <button class="operator-outline" type="button" (click)="onReject()">Rechazar soporte</button>
+      <button class="operator-primary" type="button" (click)="onApprove()">Validar soporte</button>
+    </div>
+  }
+</section>

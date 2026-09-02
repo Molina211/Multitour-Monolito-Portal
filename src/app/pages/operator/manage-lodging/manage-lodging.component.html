@@ -1,0 +1,23 @@
+<header class="operator-topbar operator-topbar--catalog-management"><div><p class="operator-eyebrow">Catálogos</p><h1>Gestionar hospedaje</h1></div><a class="operator-outline" routerLink="/operator/catalog">Volver a catálogos</a></header>
+<section class="operator-panel" data-managed-tour-catalog id="hospedaje-catalog-panel">
+  <p class="operator-eyebrow">Hospedaje</p><h2>Capacidad y tarifa configuradas</h2>
+  <div class="operator-table-wrap">
+    <table class="operator-table">
+      <thead><tr><th>Hospedaje</th><th>Capacidad</th><th>Tarifa base</th><th>Vigencia</th><th>Política de cupo</th><th>Estado</th><th>Acción</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>{{ record.fields['name'] }}</td>
+          <td>{{ record.fields['capacity'] }} viajeros</td>
+          <td>{{ record.fields['tariff'] }}</td>
+          <td>{{ record.fields['validity'] }}</td>
+          <td>{{ record.fields['policy'] }}</td>
+          <td><span class="operator-status" [class.is-confirmed]="isActive(record.key, record.active)" [class.is-cancelled]="!isActive(record.key, record.active)">{{ isActive(record.key, record.active) ? 'Activo' : 'Inactivo' }}</span></td>
+          <td>
+            <a class="operator-row-manage">Gestionar</a>
+            <button class="operator-row-toggle" type="button" (click)="toggle(record.key, isActive(record.key, record.active))">{{ isActive(record.key, record.active) ? 'Desactivar' : 'Activar' }}</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>

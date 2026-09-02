@@ -1,0 +1,46 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Descuento adicional</p><h1>Aplicar descuento</h1></div>
+  <a class="operator-outline" routerLink="/operator/reservations">Volver a reservas</a>
+</header>
+
+<form class="operator-reservation-form" (submit)="onSubmit($event)">
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Reserva seleccionada</p>
+    <h2>Descuento adicional autorizado</h2>
+    <div class="operator-form-grid">
+      <label>Reserva<input readonly type="text" [value]="'#' + code" /></label>
+      <label>Cliente<input readonly type="text" [value]="reservation?.customer || ''" /></label>
+      <label>Servicio<input readonly type="text" [value]="reservation?.service || ''" /></label>
+      <label>Valor actual<input readonly type="text" [value]="reservation?.final || ''" /></label>
+      <label>
+        Descuento adicional (%)
+        <input
+          required
+          type="number"
+          min="1"
+          max="100"
+          inputmode="numeric"
+          [disabled]="disabledForm()"
+          [value]="percentage()"
+          (input)="percentage.set($any($event.target).valueAsNumber || null)"
+        />
+      </label>
+      <label>Nuevo valor calculado<input readonly type="text" [value]="newValue()" /></label>
+      <label class="operator-form-wide">
+        Motivo (obligatorio)
+        <textarea
+          required
+          placeholder="Describe el motivo del descuento adicional"
+          [disabled]="disabledForm()"
+          [value]="reason()"
+          (input)="reason.set($any($event.target).value)"
+        ></textarea>
+      </label>
+    </div>
+  </section>
+  <p class="operator-form-feedback" [class.is-valid]="feedbackIsValid()">{{ feedback() }}</p>
+  <div class="operator-form-actions">
+    <a class="operator-outline" routerLink="/operator/reservations">Cancelar</a>
+    <button class="operator-primary" type="submit" [disabled]="disabledForm()">Aplicar descuento</button>
+  </div>
+</form>

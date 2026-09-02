@@ -1,0 +1,21 @@
+<main class="operator-shell">
+  <aside class="operator-sidebar">
+    <a class="operator-brand" routerLink="/operator">MULTITOUR</a>
+    <p class="operator-role">Administrador del operador</p>
+    <nav class="operator-nav" aria-label="Administración del operador">
+      <a routerLink="/operator" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">Resumen</a>
+      <a routerLink="/operator/reservations" routerLinkActive="is-active">Reservas</a>
+      <a routerLink="/operator/catalog" routerLinkActive="is-active">Catálogos</a>
+      <a routerLink="/operator/discounts" routerLinkActive="is-active">Descuentos</a>
+      <a routerLink="/operator/payments" routerLinkActive="is-active">Pagos</a>
+      <a>Caja</a>
+      <a routerLink="/operator/operations" routerLinkActive="is-active">Operación</a>
+      <a>Reportes</a>
+    </nav>
+    <a class="operator-signout" routerLink="/login">Cerrar sesión</a>
+  </aside>
+
+  <section class="operator-content">
+    <router-outlet></router-outlet>
+  </section>
+</main>

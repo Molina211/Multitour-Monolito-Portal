@@ -1,0 +1,37 @@
+@if (reservation(); as reservation) {
+  <header class="operator-topbar"><div><p class="operator-eyebrow">Registro completado</p><h1>Reserva registrada</h1></div><a class="operator-outline" routerLink="/operator/reservations">Volver a reservas</a></header>
+  <section class="operator-success-card">
+    <div class="operator-success-mark" aria-hidden="true">✓</div>
+    <div><p class="operator-eyebrow">Nueva reserva</p><h2>#{{ reservation.code }}</h2><p>La reserva quedó registrada como proyección comercial dentro del operador activo.</p></div>
+    <span class="operator-status is-pending">Pendiente de pago</span>
+  </section>
+  <section class="operator-detail-grid">
+    <article class="operator-panel">
+      <p class="operator-eyebrow">Resumen</p><h2>{{ reservation.service }}</h2>
+      <div class="operator-detail-list">
+        <div><span>Salida</span><strong>{{ reservation.date }}</strong></div>
+        <div><span>Viajeros</span><strong>{{ reservation.travelers }}</strong></div>
+        <div><span>Titular</span><strong>{{ reservation.customer }}</strong></div>
+      </div>
+    </article>
+    <article class="operator-panel">
+      <p class="operator-eyebrow">Estado económico</p><h2>Estado de pago</h2>
+      <span class="operator-payment-state">{{ reservation.payment }}</span>
+      <div class="operator-detail-list">
+        <div><span>Modalidad esperada</span><strong>{{ reservation.method }}</strong></div>
+        <div><span>Valor final</span><strong>{{ reservation.final }}</strong></div>
+        <div><span>Valor proyectado</span><strong>{{ reservation.projected }}</strong></div>
+        <div><span>Descuentos aplicados</span><strong>{{ reservation.discount }}</strong></div>
+        <div><span>Saldo pendiente</span><strong>{{ reservation.balance }}</strong></div>
+      </div>
+    </article>
+  </section>
+  <section class="operator-panel operator-next-panel">
+    <p class="operator-eyebrow">Siguiente paso</p><h2>Gestiona el pago según la modalidad habilitada.</h2>
+    <p class="operator-copy">La reserva se confirmará solo cuando cumpla la condición de pago parametrizada. Mientras tanto, conserva el seguimiento y saldo pendiente.</p>
+    <div class="operator-form-actions">
+      <a class="operator-outline" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: reservation.code }">Ver detalle</a>
+      <a class="operator-primary" [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: reservation.code }">Gestionar pago</a>
+    </div>
+  </section>
+}

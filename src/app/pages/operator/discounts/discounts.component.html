@@ -1,0 +1,37 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Reglas comerciales</p><h1>Descuentos</h1></div>
+  <a class="operator-primary" routerLink="/operator/discounts/new">Crear descuento</a>
+</header>
+<section class="operator-hero operator-hero-compact">
+  <div><p class="operator-eyebrow">Configuración</p><h2>Descuentos visibles y trazables.</h2></div>
+  <p>Define vigencia, prioridad, acumulación, topes y base de cálculo antes de habilitarlos.</p>
+</section>
+
+<section class="operator-panel">
+  <div class="operator-panel-head">
+    <div><p class="operator-eyebrow">Vigentes</p><h2>Promociones activas</h2></div>
+    <span class="operator-status is-confirmed">{{ totalActive() }} activa{{ totalActive() === 1 ? '' : 's' }}</span>
+  </div>
+  @if (!hasLegacyOverride()) {
+    <div class="operator-promo">
+      <div><span>TOUR MONTAÑAS</span><strong>20% de descuento</strong><p>Vigente hasta el 30 sep 2026. Base de cálculo: valor proyectado del tour.</p></div>
+      <button type="button" (click)="editDiscount('legacy-tour-montanas')">Editar parámetros</button>
+    </div>
+  }
+  @for (discount of discounts(); track discount.id) {
+    <div class="operator-promo">
+      <div>
+        <span>{{ (discount.serviceLabel || discount.service).toUpperCase() }}</span>
+        <strong>{{ discount.percentage }}% de descuento</strong>
+        <p>Vigente hasta el {{ discount.end }}. Base de cálculo: {{ baseLabel(discount.base) }}. Prioridad {{ discount.priority }}, {{ stackableLabel(discount.stackable) }}.{{ discount.cap ? ' Tope: ' + discount.cap + '.' : '' }}</p>
+      </div>
+      <button type="button" (click)="editDiscount(discount.id)">Editar parámetros</button>
+    </div>
+  }
+</section>
+
+<section class="operator-panel">
+  <div class="operator-panel-head"><div><p class="operator-eyebrow">Decisiones excepcionales</p><h2>Descuento adicional</h2></div></div>
+  <p class="operator-copy">Solo el Administrador puede autorizar descuentos adicionales. Toda autorización debe registrar el motivo y quedar asociada a la reserva.</p>
+  <a class="operator-outline" [routerLink]="['/operator/reservations']" [queryParams]="{ mode: 'additional-discount' }">Buscar una reserva</a>
+</section>

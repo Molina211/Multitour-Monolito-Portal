@@ -1,0 +1,16 @@
+<main class="platform-shell">
+  <aside class="platform-sidebar">
+    <a class="platform-brand" routerLink="/platform">MULTI<span>TOUR</span></a>
+    <p class="platform-role">Administrador de plataforma</p>
+    <nav class="platform-nav" aria-label="Navegacion de plataforma">
+      <a routerLink="/platform" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">Resumen</a>
+      <a routerLink="/platform/operators" routerLinkActive="is-active">Operadores</a>
+      <a routerLink="/platform/audit" routerLinkActive="is-active">Auditoría</a>
+    </nav>
+    <a class="platform-signout" routerLink="/login">Cerrar sesion</a>
+  </aside>
+
+  <section class="platform-content">
+    <router-outlet></router-outlet>
+  </section>
+</main>

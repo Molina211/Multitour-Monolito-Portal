@@ -1,0 +1,27 @@
+<header class="platform-topbar">
+  <div><p class="platform-eyebrow">Gestion de operadores</p><h1>Operadores</h1></div>
+  <a class="platform-primary" routerLink="/platform/operators/new">Crear operador</a>
+</header>
+
+<section class="platform-panel">
+  <div class="platform-panel-head">
+    <div><p class="platform-eyebrow">Directorio</p><h2>Empresas operadoras</h2></div>
+    <span class="platform-table-note">Cada operador mantiene su informacion y operacion aisladas dentro de Multitour.</span>
+  </div>
+  <div class="platform-table-wrap">
+    <table class="platform-table">
+      <thead><tr><th>Operador</th><th>Identificador</th><th>Primer administrador</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        @for (tenant of tenants(); track tenant.id) {
+          <tr>
+            <td><strong>{{ tenant.name }}</strong><small>Creado: {{ tenant.createdAt }}</small></td>
+            <td><code>{{ tenant.id }}</code></td>
+            <td>{{ tenant.adminName }}<small>{{ tenant.adminEmail }}</small></td>
+            <td><span class="platform-status" [class.is-active]="tenant.status === 'Activo'" [class.is-inactive]="tenant.status !== 'Activo'">{{ tenant.status }}</span></td>
+            <td><a class="platform-table-link" [routerLink]="['/platform/operators', tenant.id]">Ver detalle</a></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

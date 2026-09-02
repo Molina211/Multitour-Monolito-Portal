@@ -1,0 +1,44 @@
+@if (tenant(); as tenant) {
+  <header class="platform-topbar">
+    <div><p class="platform-eyebrow">Detalle del operador</p><h1>{{ tenant.name }}</h1></div>
+    <a class="platform-link" routerLink="/platform/operators">Volver a operadores</a>
+  </header>
+
+  <section class="platform-tenant-hero">
+    <div>
+      <span class="platform-status" [class.is-active]="isActive()" [class.is-inactive]="!isActive()">{{ tenant.status }}</span>
+      <p>Identificador: {{ tenant.id }}</p>
+    </div>
+    <div class="platform-tenant-hero-admin">
+      <span>Primer Administrador</span>
+      <strong>{{ tenant.adminName }}</strong>
+      <small>{{ tenant.adminEmail }}</small>
+    </div>
+  </section>
+
+  <section class="platform-detail-grid">
+    <article class="platform-panel">
+      <p class="platform-eyebrow">Estado operativo</p>
+      <h2>{{ stateHeading() }}</h2>
+      <p class="platform-section-copy">{{ stateCopy() }}</p>
+      <form class="platform-state-form" (submit)="onSubmit($event)" novalidate>
+        <label>
+          <span>{{ reasonLabel() }}</span>
+          <textarea name="reason" rows="3" [placeholder]="reasonPlaceholder()"></textarea>
+        </label>
+        <p class="feedback" [class.is-error]="feedbackIsError()" [class.is-success]="!feedbackIsError() && feedback()" aria-live="polite">{{ feedback() }}</p>
+        <button [class]="isActive() ? 'platform-danger' : 'platform-primary'" type="submit">{{ submitLabel() }}</button>
+      </form>
+    </article>
+
+    <article class="platform-panel">
+      <p class="platform-eyebrow">Alcance del Administrador de plataforma</p>
+      <h2>Soporte administrativo, no operativo</h2>
+      <ul class="platform-scope-list">
+        <li>Gestiona alta, activación, inactivación y reactivación.</li>
+        <li>Conserva trazabilidad de las decisiones sobre el operador.</li>
+        <li>No registra reservas, pagos, gastos ni movimientos de caja.</li>
+      </ul>
+    </article>
+  </section>
+}

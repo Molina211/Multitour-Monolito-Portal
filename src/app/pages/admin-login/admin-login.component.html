@@ -1,0 +1,37 @@
+<a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+<main id="contenido" class="travel-login-shell">
+  <header class="travel-login-header travel-login-header-centered">
+    <a class="travel-login-brand" routerLink="/">[Tu Marca]</a>
+  </header>
+  <section class="travel-login-stage">
+    <div class="travel-login-card travel-platform-login-card">
+      <div class="travel-login-copy">
+        <p class="travel-platform-login-kicker">Multi tour / entorno interno</p>
+        <h1>Acceso de plataforma</h1>
+        <p>Ingresa para administrar los operadores de Multi tour.</p>
+      </div>
+      <form class="travel-login-form" (submit)="onSubmit($event)" novalidate>
+        <div class="travel-login-field">
+          <label for="login-id">Correo Electronico</label>
+          <input id="login-id" name="email" type="email" autocomplete="email" placeholder="correo@ejemplo.com" />
+        </div>
+        <div class="travel-login-field">
+          <div class="travel-login-field-head"><label for="login-password">Contrasena</label></div>
+          <div class="travel-login-password-wrap">
+            <input
+              id="login-password"
+              name="password"
+              [type]="passwordVisible() ? 'text' : 'password'"
+              autocomplete="current-password"
+              placeholder="..........."
+            />
+            <button class="travel-login-visibility" type="button" (click)="togglePasswordVisibility()">Ver</button>
+          </div>
+        </div>
+        <p class="feedback" aria-live="polite">{{ feedback() }}</p>
+        <button class="travel-login-submit" type="submit"><span>Ingresar a plataforma</span></button>
+      </form>
+      <p class="travel-recover-back"><a routerLink="/login">Volver al acceso general</a></p>
+    </div>
+  </section>
+</main>

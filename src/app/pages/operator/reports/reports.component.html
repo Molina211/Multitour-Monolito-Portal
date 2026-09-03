@@ -1,0 +1,51 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Consultas administrativas</p><h1>Reportes</h1></div>
+  <button class="operator-outline" type="button" (click)="exportReport()">Exportar reporte</button>
+</header>
+<section class="operator-hero operator-hero-compact">
+  <div><p class="operator-eyebrow">Septiembre 2026</p><h2>Información consolidada para decidir con claridad.</h2></div>
+  <p>Consulta reservas, ejecución, costos y caja sin mezclar la información de otros operadores.</p>
+</section>
+
+<section class="operator-metrics">
+  <article><span>Ventas confirmadas</span><strong>{{ salesLabel() }}</strong><small>Valor comercial confirmado</small></article>
+  <article><span>Ingresos del período</span><strong>{{ incomeLabel() }}</strong><small>Dinero recibido o validado en caja</small></article>
+  <article><span>Costos operacionales</span><strong>{{ costsLabel() }}</strong><small>Servicios ejecutados</small></article>
+  <article><span>Cancelaciones</span><strong>{{ summary().cancelledCount }}</strong><small>Con causal registrada</small></article>
+</section>
+
+<section class="operator-report-grid">
+  <article>
+    <p class="operator-eyebrow">Dashboard diario</p><h2>Seguimiento operativo</h2>
+    <div class="operator-metrics operator-metrics--reports-daily">
+      <article><span>Reservas creadas hoy</span><strong>{{ dashboard().createdToday }}</strong></article>
+      <article><span>Pendientes de pago</span><strong>{{ dashboard().pendingPayment }}</strong></article>
+      <article><span>Confirmadas</span><strong>{{ dashboard().confirmed }}</strong></article>
+      <article><span>Canceladas</span><strong>{{ dashboard().cancelled }}</strong></article>
+      <article><span>Próximas a ejecutar</span><strong>{{ dashboard().upcomingExecutions }}</strong></article>
+    </div>
+    <a routerLink="/operator/reservations">Ir a reservas</a>
+  </article>
+  <article>
+    <p class="operator-eyebrow">Reporte mensual</p><h2>Control económico</h2>
+    @if (!hasPeriods()) {
+      <p class="operator-copy">Aún no hay cierres de caja registrados para consolidar el reporte mensual.</p>
+    } @else {
+      @for (item of periods(); track item.period) {
+        <div>
+          <p class="operator-eyebrow">Período reportado</p><strong>{{ item.period }}</strong>
+          <div class="operator-detail-list">
+            <div><span>Ingresos del período</span><strong>{{ formatAmount(item.ingresos) }}</strong></div>
+            <div><span>Pagos operacionales del período</span><strong>{{ formatAmount(item.pagosOperacionales) }}</strong></div>
+            <div><span>Gastos del período</span><strong>{{ formatAmount(item.gastos) }}</strong></div>
+            <div><span>Devoluciones efectivamente realizadas</span><strong>{{ formatAmount(item.devoluciones) }}</strong></div>
+            <div><span>Total consolidado de caja del período</span><strong>{{ formatAmount(item.total) }}</strong></div>
+            <div><span>Cancelaciones registradas en el período</span><strong>{{ item.cancelaciones }}</strong></div>
+            <div><span>Costos operacionales registrados en el período</span><strong>{{ item.costosOperacionales > 0 ? formatAmount(item.costosOperacionales) : 'Sin costos operacionales registrados' }}</strong></div>
+          </div>
+        </div>
+      }
+    }
+    <a routerLink="/operator/cash">Ir a caja</a>
+  </article>
+</section>

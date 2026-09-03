@@ -5459,7 +5459,12 @@ body {
 .operator-primary, .operator-outline { display: inline-flex; align-items: center; justify-content: center; min-height: 45px; padding: 0 18px; border-radius: 10px; font: inherit; font-size: 0.88rem; font-weight: 800; cursor: pointer; }
 .operator-primary { border: 1px solid #16877d; background: #16877d; color: #fff; box-shadow: 0 10px 22px rgba(15, 118, 110, 0.16); }
 .operator-primary:hover { background: #0d746b; }
+/* Detalle de reserva: ".operator-panel-head > a" (linea 5481) le gana en especificidad
+   a ".operator-primary" y deja el texto en teal; los botones "Gestionar pago" y
+   "Gestionar devolucion" deben verse siempre en blanco sobre el mismo fondo. */
+.operator-panel-head > a.operator-primary { color: #fff; }
 .operator-outline { border: 1px solid #bcd4ca; background: #f5faf7; color: #0e756c; }
+.operator-outline:disabled { border-color: #d7e2dc; background: #eef3f0; color: #93a29d; cursor: not-allowed; }
 .operator-topbar--catalog-management .operator-outline { align-self: flex-end; position: relative; top: 10px; }
 .operator-hero { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(230px, 0.7fr); gap: 28px; margin-bottom: 24px; padding: 25px 28px; border: 1px solid #d5e4dc; border-radius: 16px; background: linear-gradient(135deg, #e9f4ed, #fffefa 76%); }
 .operator-hero-compact { margin-bottom: 22px; }
@@ -5472,6 +5477,13 @@ body {
 .operator-section-heading > p { max-width: 330px; margin: 0; color: #657478; font-size: 0.82rem; line-height: 1.45; text-align: right; }
 .operator-metrics { display: grid; gap: 14px; }
 .operator-metrics--daily { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.operator-metrics--reports-daily { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.operator-metrics--reports-daily > article:nth-child(-n+3) { grid-column: span 2; }
+.operator-metrics--reports-daily > article:nth-child(n+4) { grid-column: span 3; }
+@media (max-width: 620px) {
+  .operator-metrics--reports-daily { grid-template-columns: 1fr; }
+  .operator-metrics--reports-daily > article { grid-column: auto; }
+}
 .operator-metrics--support { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 590px; }
 .operator-metrics article, .operator-panel, .operator-catalog-grid article, .operator-report-grid article { border: 1px solid #dce5df; border-radius: 16px; background: rgba(255, 254, 251, 0.94); box-shadow: 0 13px 26px rgba(25, 52, 47, 0.035); }
 .operator-metrics article { display: grid; align-content: start; gap: 8px; min-height: 145px; padding: 20px; }

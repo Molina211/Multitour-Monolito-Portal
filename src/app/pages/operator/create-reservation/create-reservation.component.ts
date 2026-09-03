@@ -1,8 +1,11 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { KeyValuePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { OperatorReservationService } from '../operator-reservation.service';
+import { OPERATOR_TODAY_DATE, OperatorReservationService } from '../operator-reservation.service';
+import { OPERATOR_CATALOG_DEFAULTS, OperatorCatalogService } from '../operator-catalog.service';
 
 interface ServiceOption {
+  key: string;
   name: string;
   price: number;
   discount: number;
@@ -14,33 +17,84 @@ interface ServiceOption {
   conditions: string[];
 }
 
-// Mismos servicios/valores/reglas ya confirmados en la landing aprobada (app.js: setupOperatorReservationForm).
-const SERVICES: Record<string, ServiceOption> = {
-  mountains: {
-    name: 'Tour destino ejemplo - Montañas', price: 1299000, discount: 0.2, risk: false, lodgingCapacity: 2,
-    departures: ['15 sep 2026', '22 sep 2026', '29 sep 2026'], payments: ['Transferencia', 'Efectivo', 'Abono'],
+const TOUR_CATALOG_ID = 'catalogo-catalog-panel';
+const LODGING_CATALOG_ID = 'hospedaje-catalog-panel';
+
+// El catalogo de Catálogos (OPERATOR_CATALOG_DEFAULTS) todavia no modela salidas
+// especificas, medios de pago aceptados ni inclusiones por servicio. Estos datos
+// complementarios YA aprobados para los 4 tours base se conservan aqui, ligados al MISMO
+// key/nombre ya usado en Catálogos: la identidad, tarifa, vigencia y estado activo/inactivo
+// del servicio siempre se leen en vivo desde Catálogos, nunca desde esta lista.
+const KNOWN_TOUR_DETAILS: Record<
+  string,
+  Pick<ServiceOption, 'discount' | 'risk' | 'departures' | 'payments' | 'inclusions' | 'conditions'>
+> = {
+  'Tour destino ejemplo - Montañas': {
+    discount: 0.2,
+    risk: false,
+    departures: ['15 sep 2026', '22 sep 2026', '29 sep 2026'],
+    payments: ['Transferencia', 'Efectivo', 'Abono'],
     inclusions: ['Alimentación incluida: plato del día', 'Transporte incluido: trayecto de ida y vuelta'],
-    conditions: ['La modificación o cancelación depende de las condiciones vigentes del tour.', 'La disponibilidad y los valores se validan antes de registrar la reserva.'],
+    conditions: [
+      'La modificación o cancelación depende de las condiciones vigentes del tour.',
+      'La disponibilidad y los valores se validan antes de registrar la reserva.',
+    ],
   },
-  cenotes: {
-    name: 'Aventura en cenotes ocultos', price: 520000, discount: 0, risk: false, lodgingCapacity: 2,
-    departures: ['12 sep 2026', '19 sep 2026'], payments: ['Transferencia', 'Efectivo', 'Abono'],
+  'Aventura en cenotes ocultos': {
+    discount: 0,
+    risk: false,
+    departures: ['12 sep 2026', '19 sep 2026'],
+    payments: ['Transferencia', 'Efectivo', 'Abono'],
     inclusions: ['Alimentación incluida: snack ligero', 'Transporte incluido: traslado al punto de salida'],
-    conditions: ['La modificación o cancelación depende de las condiciones vigentes del tour.', 'La disponibilidad y los valores se validan antes de registrar la reserva.'],
+    conditions: [
+      'La modificación o cancelación depende de las condiciones vigentes del tour.',
+      'La disponibilidad y los valores se validan antes de registrar la reserva.',
+    ],
   },
-  rafting: {
-    name: 'Rafting y acampada extrema', price: 799000, discount: 0, risk: true, lodgingCapacity: 2,
-    departures: ['13 sep 2026', '27 sep 2026'], payments: ['Transferencia', 'Abono'],
+  'Rafting y acampada extrema': {
+    discount: 0,
+    risk: true,
+    departures: ['13 sep 2026', '27 sep 2026'],
+    payments: ['Transferencia', 'Abono'],
     inclusions: ['Alimentación incluida: refrigerio de la actividad', 'Transporte incluido: traslado al punto de salida'],
-    conditions: ['La actividad requiere requisitos de riesgo para cada viajero.', 'La modificación o cancelación depende de las condiciones vigentes del servicio.'],
+    conditions: [
+      'La actividad requiere requisitos de riesgo para cada viajero.',
+      'La modificación o cancelación depende de las condiciones vigentes del servicio.',
+    ],
   },
-  cultural: {
-    name: 'Recorrido cultural e histórico', price: 349000, discount: 0, risk: false, lodgingCapacity: 2,
-    departures: ['16 sep 2026', '23 sep 2026', '30 sep 2026'], payments: ['Transferencia', 'Efectivo'],
+  'Recorrido cultural e histórico': {
+    discount: 0,
+    risk: false,
+    departures: ['16 sep 2026', '23 sep 2026', '30 sep 2026'],
+    payments: ['Transferencia', 'Efectivo'],
     inclusions: ['Alimentación incluida: opción gastronómica del recorrido', 'Transporte incluido: trayecto programado'],
-    conditions: ['La modificación o cancelación depende de las condiciones vigentes del servicio.', 'Los descuentos se aplican según la configuración comercial vigente.'],
+    conditions: [
+      'La modificación o cancelación depende de las condiciones vigentes del servicio.',
+      'Los descuentos se aplican según la configuración comercial vigente.',
+    ],
   },
 };
+
+// Misma condicion generica ya usada para los tours del catalogo: se reutiliza para
+// servicios nuevos que aun no tengan condiciones especificas parametrizadas (no se inventa
+// una condicion nueva).
+const GENERIC_CONDITION = 'La disponibilidad y los valores se validan antes de registrar la reserva.';
+// PDR (linea 633): modalidades de pago soportadas en Fase 1 para el tenant.
+const DEFAULT_PAYMENT_METHODS = ['Transferencia', 'Efectivo', 'Abono'];
+
+function parseCOP(value: string | undefined): number {
+  return Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
+}
+
+// Regla 1/2/5: la vigencia (rango inicio-fin) del catalogo NO es una salida reservable.
+// Sin salidas especificas configuradas para el servicio, no se inventa ninguna fecha: si
+// inicio y fin coinciden, esa unica fecha SI es una salida real; si son distintos, es un
+// rango de vigencia sin salida puntual definida y no se muestra ninguna.
+function resolveVigenciaDepartures(start: string, end: string): string[] {
+  if (!start) return [];
+  if (!end || end === start) return [start];
+  return [];
+}
 
 function normalizeDocument(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -53,15 +107,60 @@ function formatCurrency(value: number): string {
 @Component({
   selector: 'app-operator-create-reservation',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, KeyValuePipe],
   templateUrl: './create-reservation.component.html',
   styleUrl: './create-reservation.component.css',
 })
 export class CreateReservationComponent {
   private readonly reservationService = inject(OperatorReservationService);
+  private readonly catalogService = inject(OperatorCatalogService);
   private readonly router = inject(Router);
 
-  services = SERVICES;
+  // Regla 1/2/3/6: el selector se construye en vivo desde el MISMO catalogo ya usado en
+  // Catálogos (solo activos y vigentes), sin listas independientes ni servicios
+  // hardcodeados. Si el Administrador crea, activa, inactiva o actualiza un servicio, este
+  // computed lo refleja automaticamente porque lee las MISMAS senales de OperatorCatalogService.
+  services = computed<Record<string, ServiceOption>>(() => {
+    const result: Record<string, ServiceOption> = {};
+    const lodgingRecord = OPERATOR_CATALOG_DEFAULTS[LODGING_CATALOG_ID]?.records[0];
+    const lodgingCapacity = (lodgingRecord && parseCOP(lodgingRecord.fields['capacity'])) || 2;
+
+    for (const record of OPERATOR_CATALOG_DEFAULTS[TOUR_CATALOG_ID].records) {
+      if (!this.catalogService.isActive(TOUR_CATALOG_ID, record.key, record.active)) continue;
+      const details = KNOWN_TOUR_DETAILS[record.key];
+      const [validityStart, validityEnd] = (record.fields['validity'] || '').split(' - ');
+      const configuredDepartures = this.catalogService.getDepartures(record.key);
+      result[record.key] = {
+        key: record.key,
+        name: record.fields['name'] || record.key,
+        price: parseCOP(record.fields['tariff']),
+        discount: details?.discount ?? 0,
+        risk: details?.risk ?? false,
+        lodgingCapacity,
+        departures: configuredDepartures ?? (details ? details.departures : resolveVigenciaDepartures(validityStart, validityEnd)),
+        payments: details?.payments ?? DEFAULT_PAYMENT_METHODS,
+        inclusions: details?.inclusions ?? [],
+        conditions: details?.conditions ?? [GENERIC_CONDITION],
+      };
+    }
+    for (const resource of this.catalogService.newServices()) {
+      if (resource.type !== 'tour' || !resource.active) continue;
+      const configuredDepartures = this.catalogService.getDepartures(resource.id);
+      result[resource.id] = {
+        key: resource.id,
+        name: resource.name,
+        price: resource.price,
+        discount: 0,
+        risk: false,
+        lodgingCapacity: resource.capacity ?? lodgingCapacity,
+        departures: configuredDepartures ?? resolveVigenciaDepartures(resource.start, resource.end),
+        payments: DEFAULT_PAYMENT_METHODS,
+        inclusions: [],
+        conditions: [resource.policy || GENERIC_CONDITION],
+      };
+    }
+    return result;
+  });
 
   serviceKey = signal('');
   departure = signal('');
@@ -74,7 +173,7 @@ export class CreateReservationComponent {
   feedback = signal('Completa los campos obligatorios para registrar la reserva.');
   feedbackIsValid = signal(false);
 
-  selectedService = computed(() => this.services[this.serviceKey()] || null);
+  selectedService = computed(() => this.services()[this.serviceKey()] || null);
   requiredCompanions = computed(() => Math.max(0, this.travelers() - 1));
   companionIndexes = computed(() => Array.from({ length: this.requiredCompanions() }, (_, index) => index));
 
@@ -109,6 +208,10 @@ export class CreateReservationComponent {
     const service = this.selectedService();
     return service ? this.travelers() <= service.lodgingCapacity : true;
   });
+
+  // El pipe "keyvalue" ordena alfabeticamente por defecto: se desactiva para conservar el
+  // mismo orden ya usado en Catálogos.
+  unsorted = (): number => 0;
 
   onServiceChange(value: string): void {
     this.serviceKey.set(value);
@@ -157,6 +260,7 @@ export class CreateReservationComponent {
 
     this.reservationService.saveDraft({
       code,
+      createdAt: OPERATOR_TODAY_DATE,
       customer: holderName,
       email: 'No registrado en esta vista',
       service: service.name,

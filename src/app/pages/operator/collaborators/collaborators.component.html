@@ -1,0 +1,33 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Gestión del equipo</p><h1>Colaboradores</h1></div>
+  <a class="operator-primary" routerLink="/operator/collaborators/new">Registrar colaborador</a>
+</header>
+<section class="operator-hero operator-hero-compact">
+  <div><p class="operator-eyebrow">Equipo interno</p><h2>Usuarios internos de tu operador.</h2></div>
+  <p>Gestiona los usuarios internos que apoyan la operación de tu empresa.</p>
+</section>
+
+<section class="operator-panel">
+  <div class="operator-panel-head">
+    <div><p class="operator-eyebrow">Equipo del operador</p><h2>Colaboradores registrados</h2></div>
+  </div>
+  @if (!hasCollaborators()) {
+    <p class="operator-copy">Aún no se han registrado colaboradores.</p>
+  } @else {
+    <div class="operator-table-wrap">
+      <table class="operator-table">
+        <thead><tr><th>Nombre</th><th>Correo / usuario de acceso</th><th>Rol</th><th>Acción</th></tr></thead>
+        <tbody>
+          @for (collaborator of collaborators(); track collaborator.id) {
+            <tr>
+              <td><strong>{{ collaborator.name }}</strong></td>
+              <td>{{ collaborator.email }}</td>
+              <td>{{ collaborator.role }}</td>
+              <td><a [routerLink]="['/operator/collaborators/detail']" [queryParams]="{ id: collaborator.id }">Ver detalle</a></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

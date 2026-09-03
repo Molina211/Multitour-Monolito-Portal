@@ -1,0 +1,26 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Control económico</p><h1>Consolidación mensual</h1></div>
+  <a class="operator-outline" routerLink="/operator/cash">Volver a caja</a>
+</header>
+<p class="operator-copy">
+  Construida a partir de los cierres diarios registrados; la base diaria no se suma nuevamente como ingreso del período.
+</p>
+
+@if (!hasClosures()) {
+  <p class="operator-copy">Aún no hay cierres registrados para consolidar.</p>
+}
+
+@for (item of periods(); track item.period) {
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Período reportado</p><h2>{{ item.period }}</h2>
+    <div class="operator-detail-list">
+      <div><span>Ingresos del período</span><strong>{{ formatAmount(item.ingresos) }}</strong></div>
+      <div><span>Pagos operacionales del período</span><strong>{{ formatAmount(item.pagosOperacionales) }}</strong></div>
+      <div><span>Gastos del período</span><strong>{{ formatAmount(item.gastos) }}</strong></div>
+      <div><span>Devoluciones efectivamente realizadas</span><strong>{{ formatAmount(item.devoluciones) }}</strong></div>
+      <div><span>Total consolidado de caja del período</span><strong>{{ formatAmount(item.total) }}</strong></div>
+      <div><span>Cancelaciones registradas en el período</span><strong>{{ item.cancelaciones }}</strong></div>
+      <div><span>Costos operacionales registrados en el período</span><strong>{{ item.costosOperacionales > 0 ? formatAmount(item.costosOperacionales) : 'Sin costos operacionales registrados' }}</strong></div>
+    </div>
+  </section>
+}

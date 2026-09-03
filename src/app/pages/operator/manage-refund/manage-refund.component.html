@@ -1,0 +1,54 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Cancelación o modificación</p><h1>Registrar solicitud de devolución</h1></div>
+  <a class="operator-outline" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: code }">Volver a la reserva</a>
+</header>
+
+<section class="operator-panel">
+  <p class="operator-eyebrow">Origen</p><h2>Cancelación o modificación registrada</h2>
+  <div class="operator-detail-list">
+    <div><span>Reserva</span><strong>{{ code ? '#' + code : '—' }}</strong></div>
+    <div><span>Cliente</span><strong>{{ reservation?.customer || '—' }}</strong></div>
+    <div><span>Estado de la reserva</span><strong>{{ reservation?.status || '—' }}</strong></div>
+    <div><span>Tipo de novedad</span><strong>{{ origin?.type || '—' }}</strong></div>
+    <div><span>Causal registrada</span><strong>{{ origin?.causal || '—' }}</strong></div>
+    <div><span>Valor pagado o validado</span><strong>{{ reservation?.paid || '—' }}</strong></div>
+    @if (origin; as origin) {
+      <div><span>Fecha de la novedad</span><strong>{{ origin.registeredAt | date: 'medium' }}</strong></div>
+    } @else {
+      <div><span>Fecha de la novedad</span><strong>—</strong></div>
+    }
+  </div>
+</section>
+
+<section class="operator-panel">
+  <p class="operator-eyebrow">Solicitud</p><h2>Datos de la solicitud de devolución</h2>
+  <div class="operator-form-grid">
+    <label class="operator-form-wide">
+      Motivo de la solicitud de devolución (obligatorio)
+      <textarea
+        required
+        placeholder="Describe el motivo de la solicitud de devolución"
+        [disabled]="disabled()"
+        [value]="motive()"
+        (input)="motive.set($any($event.target).value)"
+      ></textarea>
+    </label>
+    <label class="operator-form-wide">
+      Observación / soporte administrativo (opcional)
+      <textarea
+        placeholder="Observaciones adicionales o referencia de soporte administrativo"
+        [disabled]="disabled()"
+        [value]="administrativeNote()"
+        (input)="administrativeNote.set($any($event.target).value)"
+      ></textarea>
+    </label>
+    <label>Estado inicial de la solicitud<input readonly type="text" value="Pendiente de autorización" /></label>
+    <label>Valor a devolver<input readonly type="text" [value]="origin?.potentialAmount || '—'" /></label>
+  </div>
+</section>
+
+<p class="operator-form-feedback" [class.is-valid]="feedbackIsValid()">{{ feedback() }}</p>
+<div class="operator-form-actions">
+  <a class="operator-outline" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: code }">Volver a la reserva</a>
+  <button class="operator-primary" type="button" [disabled]="disabled()" (click)="register()">Registrar solicitud de devolución</button>
+</div>

@@ -24,15 +24,16 @@
       <label>Servicio principal
         <select required (change)="onServiceChange($any($event.target).value)">
           <option value="">Selecciona un servicio</option>
-          <option value="mountains">Tour destino ejemplo - Montañas</option>
-          <option value="cenotes">Aventura en cenotes ocultos</option>
-          <option value="cultural">Recorrido cultural e histórico</option>
-          <option value="rafting">Rafting y acampada extrema</option>
+          @for (service of services() | keyvalue: unsorted; track service.key) {
+            <option [value]="service.key">{{ service.value.name }}</option>
+          }
         </select>
       </label>
       <label>Salida disponible
         <select required [disabled]="!selectedService()" [value]="departure()" (change)="departure.set($any($event.target).value)">
-          <option value="">{{ selectedService() ? 'Selecciona una salida' : 'Selecciona primero un servicio' }}</option>
+          <option value="">
+            {{ !selectedService() ? 'Selecciona primero un servicio' : (selectedService()?.departures?.length ? 'Selecciona una salida' : 'Este servicio no tiene salidas configuradas') }}
+          </option>
           @for (date of selectedService()?.departures ?? []; track date) {
             <option [value]="date">{{ date }}</option>
           }

@@ -1,0 +1,49 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Seguimiento real</p><h1>Registrar ejecución</h1></div>
+  <a class="operator-outline" routerLink="/operator/operations">Volver a operación</a>
+</header>
+
+<form class="operator-reservation-form" (submit)="$event.preventDefault(); register()" novalidate>
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Reserva</p><h2>Datos reservados</h2>
+    <div class="operator-form-grid">
+      <label>Reserva<input readonly type="text" [value]="code ? '#' + code : '—'" /></label>
+      <label>Cliente<input readonly type="text" [value]="reservation?.customer || '—'" /></label>
+      <label>Servicio<input readonly type="text" [value]="reservation?.service || '—'" /></label>
+      <label>Fecha<input readonly type="text" [value]="reservation?.date || '—'" /></label>
+      <label>Viajeros reservados<input readonly type="text" [value]="(reservation?.travelers || 0) + ' viajeros'" /></label>
+    </div>
+  </section>
+
+  @if (reservation) {
+    <section class="operator-panel">
+      <p class="operator-eyebrow">Ejecución real</p><h2>¿Se prestó el servicio?</h2>
+      <div class="operator-form-grid">
+        <label>Resultado
+          <select [disabled]="disabled()" [value]="served()" (change)="onServedChange($any($event.target).value)">
+            <option value="">Selecciona una opción</option>
+            <option value="si">Sí, se prestó</option>
+            <option value="no">No se prestó</option>
+          </select>
+        </label>
+        @if (served() === 'si') {
+          <label>Viajeros ejecutados
+            <input type="number" min="0" inputmode="numeric" [disabled]="disabled()" [value]="executed()" (input)="executed.set($any($event.target).valueAsNumber || 0)" />
+          </label>
+        }
+      </div>
+      @if (served() === 'no') {
+        <label class="operator-form-wide">
+          Causal de no prestación (obligatoria)
+          <textarea placeholder="Describe la causal por la cual el servicio no se prestó" [disabled]="disabled()" [value]="causal()" (input)="causal.set($any($event.target).value)"></textarea>
+        </label>
+      }
+    </section>
+  }
+
+  <p class="operator-form-feedback" [class.is-valid]="feedbackValid()">{{ feedback() }}</p>
+  <div class="operator-form-actions">
+    <a class="operator-outline" routerLink="/operator/operations">Cancelar</a>
+    <button class="operator-primary" type="submit" [disabled]="disabled()">Registrar ejecución</button>
+  </div>
+</form>

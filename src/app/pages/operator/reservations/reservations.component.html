@@ -30,12 +30,15 @@
             <td>
               @if (additionalDiscountMode && isEligibleForAdditionalDiscount(created)) {
                 <a [routerLink]="['/operator/reservations/apply-discount']" [queryParams]="{ reservation: created.code }">Aplicar descuento</a>
-              } @else if (created.action === 'Gestionar pago') {
-                <a [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: created.code }">Gestionar pago</a>
-              } @else if (created.action === 'Ver operación') {
-                <a routerLink="/operator/operations">Ver operación</a>
               } @else {
-                <a>{{ created.action }}</a>
+                <a [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: created.code }">Ver detalle</a>
+                @if (created.action === 'Gestionar pago') {
+                  · <a [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: created.code }">Gestionar pago</a>
+                } @else if (created.action === 'Ver operación') {
+                  · <a routerLink="/operator/operations">Ver operación</a>
+                } @else if (created.action) {
+                  · <a>{{ created.action }}</a>
+                }
               }
             </td>
           </tr>
@@ -51,12 +54,15 @@
               <td>
                 @if (additionalDiscountMode && isEligibleForAdditionalDiscount(reservation)) {
                   <a [routerLink]="['/operator/reservations/apply-discount']" [queryParams]="{ reservation: reservation.code }">Aplicar descuento</a>
-                } @else if (reservation.action === 'Gestionar pago') {
-                  <a [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: reservation.code }">Gestionar pago</a>
-                } @else if (reservation.action === 'Ver operación') {
-                  <a routerLink="/operator/operations">Ver operación</a>
                 } @else {
-                  <a>{{ reservation.action }}</a>
+                  <a [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: reservation.code }">Ver detalle</a>
+                  @if (reservation.action === 'Gestionar pago') {
+                    · <a [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: reservation.code }">Gestionar pago</a>
+                  } @else if (reservation.action === 'Ver operación') {
+                    · <a routerLink="/operator/operations">Ver operación</a>
+                  } @else if (reservation.action) {
+                    · <a>{{ reservation.action }}</a>
+                  }
                 }
               </td>
             </tr>

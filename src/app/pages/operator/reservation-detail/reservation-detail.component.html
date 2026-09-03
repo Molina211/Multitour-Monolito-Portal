@@ -1,7 +1,12 @@
 @if (reservation; as reservation) {
   <header class="operator-topbar">
     <div><p class="operator-eyebrow">Consulta de reserva</p><h1>Detalle de reserva</h1></div>
-    <a class="operator-outline" routerLink="/operator/reservations">Volver a reservas</a>
+    <div class="operator-form-actions">
+      @if (canCancelOrModify) {
+        <a class="operator-outline" [routerLink]="['/operator/reservations/cancel-or-modify']" [queryParams]="{ reservation: code }">Cancelar o modificar reserva</a>
+      }
+      <a class="operator-outline" routerLink="/operator/reservations">Volver a reservas</a>
+    </div>
   </header>
 
   <section class="operator-detail-hero">
@@ -42,6 +47,30 @@
         <div><span>Valor anterior</span><strong>{{ previousValue() }}</strong></div>
         <div><span>Valor descontado</span><strong>{{ discountedAmount() }}</strong></div>
         <div><span>Valor final</span><strong>{{ reservation.final }}</strong></div>
+      </div>
+    </section>
+  }
+
+  @if (showCancellationHistory && cancellation; as cancellation) {
+    <section class="operator-panel">
+      <p class="operator-eyebrow">Historial</p>
+      <h2>Cancelación registrada</h2>
+      <div class="operator-detail-list">
+        <div><span>Causal</span><strong>{{ cancellation.causal }}</strong></div>
+        <div><span>Fecha de registro</span><strong>{{ cancellation.registeredAt | date: 'medium' }}</strong></div>
+      </div>
+    </section>
+  }
+
+  @if (reservation.refundOrigin; as refundOrigin) {
+    <section class="operator-panel">
+      <div class="operator-panel-head">
+        <div><p class="operator-eyebrow">Cancelación o modificación registrada</p><h2>Devolución pendiente de gestionar</h2></div>
+        <a class="operator-primary" [routerLink]="['/operator/reservations/manage-refund']" [queryParams]="{ reservation: code }">Gestionar devolución</a>
+      </div>
+      <div class="operator-detail-list">
+        <div><span>Causal</span><strong>{{ refundOrigin.causal }}</strong></div>
+        <div><span>Valor potencial a devolver</span><strong>{{ refundOrigin.potentialAmount }}</strong></div>
       </div>
     </section>
   }

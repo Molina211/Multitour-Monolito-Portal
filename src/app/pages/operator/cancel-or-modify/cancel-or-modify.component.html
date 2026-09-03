@@ -1,0 +1,99 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Gestión de reserva</p><h1>Cancelar o modificar reserva</h1></div>
+  <a class="operator-outline" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: code }">Volver a la reserva</a>
+</header>
+<p class="operator-access-note">La devolución solo puede gestionarse cuando existe una cancelación o modificación registrada con causal. El valor a devolver no se calcula ni se selecciona manualmente: queda pendiente hasta que la condición comercial de devolución esté parametrizada en el PDR.</p>
+@if (isInExecution) {
+  <p class="operator-access-note">Esta reserva está en ejecución: no se permiten modificaciones ordinarias. Solo puede registrarse una cancelación extraordinaria por emergencia (RF-008A).</p>
+}
+
+<form (submit)="$event.preventDefault(); register()">
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Reserva</p><h2>Registro de novedad</h2>
+    <div class="operator-form-grid">
+      <label>Reserva<input readonly type="text" [value]="code ? '#' + code : ''" /></label>
+      <label>Cliente<input readonly type="text" [value]="reservation?.customer || ''" /></label>
+      <label>Estado actual<input readonly type="text" [value]="reservation?.status || ''" /></label>
+      <label>Valor pagado o validado<input readonly type="text" [value]="reservation?.paid || ''" /></label>
+      <label>
+        Tipo
+        <select required [disabled]="disabled()" [value]="type()" (change)="type.set($any($event.target).value)">
+          <option value="">Selecciona una opción</option>
+          <option value="Cancelación">Cancelación</option>
+          <option value="Modificación" [disabled]="isInExecution">Modificación</option>
+        </select>
+      </label>
+      <label class="operator-form-wide">
+        Causal (obligatoria)
+        <textarea
+          required
+          [placeholder]="isInExecution ? 'Describe la emergencia que justifica la cancelación extraordinaria' : 'Describe la causal de la cancelación o modificación'"
+          [disabled]="disabled()"
+          [value]="causal()"
+          (input)="causal.set($any($event.target).value)"
+        ></textarea>
+      </label>
+    </div>
+  </section>
+
+  @if (isModification()) {
+    <section class="operator-panel">
+      <p class="operator-eyebrow">Nuevos datos del servicio</p><h2>Modificar reserva</h2>
+      <div class="operator-form-grid">
+        <label>
+          Servicio principal
+          <select [disabled]="disabled()" [value]="serviceKey()" (change)="onServiceChange($any($event.target).value)">
+            <option value="">Selecciona un servicio</option>
+            @for (service of services; track service.key) {
+              <option [value]="service.key">{{ service.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Salida disponible
+          <select [disabled]="disabled() || !selectedService()" [value]="departure()" (change)="departure.set($any($event.target).value)">
+            <option value="">Selecciona una salida</option>
+            @for (date of selectedService()?.departures ?? []; track date) {
+              <option [value]="date">{{ date }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Cantidad total de viajeros
+          <input type="number" min="1" [disabled]="disabled()" [value]="travelers()" (input)="onTravelersChange($any($event.target).value)" />
+        </label>
+        <label>
+          Hospedaje, si aplica
+          <select [disabled]="disabled()" [value]="lodging()" (change)="lodging.set($any($event.target).value)">
+            <option value="none">No aplica</option>
+            <option value="mirador">Ecohotel Mirador</option>
+          </select>
+        </label>
+      </div>
+      @if (selectedService() && lodging() !== 'none') {
+        <p class="operator-capacity-message" [class.is-error]="lodgingOverCapacity()">
+          {{ lodgingOverCapacity() ? 'Capacidad insuficiente: este hospedaje admite hasta ' + selectedService()?.lodgingCapacity + ' viajeros.' : 'Hospedaje con capacidad para hasta ' + selectedService()?.lodgingCapacity + ' viajeros.' }}
+        </p>
+      }
+      <div class="operator-summary-values">
+        <div><span>Valor proyectado</span><strong>{{ projectedLabel() }}</strong></div>
+        <div><span>Descuentos aplicables</span><strong>{{ discountLabel() }}</strong></div>
+        <div><span>Valor final</span><strong>{{ finalLabel() }}</strong></div>
+        <div><span>Saldo pendiente</span><strong>{{ balanceLabel() }}</strong></div>
+      </div>
+    </section>
+  }
+
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Devolución</p><h2>Valor potencial a devolver</h2>
+    <div class="operator-form-grid">
+      <label class="operator-form-wide">Estado del cálculo<input readonly type="text" [value]="potentialLabel()" /></label>
+    </div>
+  </section>
+
+  <p class="operator-form-feedback" [class.is-valid]="feedbackIsValid()">{{ feedback() }}</p>
+  <div class="operator-form-actions">
+    <a class="operator-outline" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: code }">Cancelar</a>
+    <button class="operator-primary" type="submit" [disabled]="disabled()">Registrar novedad</button>
+  </div>
+</form>

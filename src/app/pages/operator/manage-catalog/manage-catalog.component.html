@@ -13,8 +13,10 @@
             <td>{{ record.fields['validity'] }}</td>
             <td><span class="operator-status" [class.is-confirmed]="isActive(record.key, record.active)" [class.is-cancelled]="!isActive(record.key, record.active)">{{ isActive(record.key, record.active) ? 'Activo' : 'Inactivo' }}</span></td>
             <td>
-              <a class="operator-row-manage">Gestionar</a>
-              <button class="operator-row-toggle" type="button" (click)="toggle(record.key, isActive(record.key, record.active))">{{ isActive(record.key, record.active) ? 'Desactivar' : 'Activar' }}</button>
+              @if (roleService.isAdmin()) {
+                <a class="operator-row-manage">Gestionar</a>
+                <button class="operator-row-toggle" type="button" (click)="toggle(record.key, isActive(record.key, record.active))">{{ isActive(record.key, record.active) ? 'Desactivar' : 'Activar' }}</button>
+              }
             </td>
           </tr>
         }

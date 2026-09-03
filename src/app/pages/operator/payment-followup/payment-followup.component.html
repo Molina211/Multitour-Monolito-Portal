@@ -1,0 +1,51 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Control de cobro</p><h1>Registrar seguimiento</h1></div>
+  <a class="operator-outline" routerLink="/operator/payments">Volver a pagos</a>
+</header>
+
+<form class="operator-reservation-form" (submit)="$event.preventDefault(); registerFollowup()">
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Seguimiento de pago</p><h2>Contacto y estado del pago pendiente</h2>
+    <div class="operator-form-grid">
+      <label>Reserva<input readonly type="text" [value]="code ? '#' + code : ''" /></label>
+      <label>Cliente<input readonly type="text" [value]="record?.customer || ''" /></label>
+      <label>Modalidad de pago<input readonly type="text" [value]="record?.method || ''" /></label>
+      <label>Valor recibido<input readonly type="text" [value]="record?.amount || ''" /></label>
+      <label>Saldo pendiente<input readonly type="text" [value]="reservation?.balance || ''" /></label>
+      <label>Estado actual<input readonly type="text" [value]="record?.status || ''" /></label>
+      <label class="operator-form-wide">Plazo/límite vigente<input readonly type="text" [value]="deadlineNote" /></label>
+      <label class="operator-form-wide">
+        Nota de seguimiento (obligatoria)
+        <textarea
+          required
+          placeholder="Describe el contacto realizado con el cliente y el resultado"
+          [disabled]="notFound"
+          [value]="note()"
+          (input)="note.set($any($event.target).value)"
+        ></textarea>
+      </label>
+    </div>
+  </section>
+  <p class="operator-form-feedback" [class.is-valid]="feedbackIsValid()">{{ feedback() }}</p>
+  <div class="operator-form-actions">
+    <a class="operator-outline" routerLink="/operator/payments">Volver a pagos</a>
+    <button class="operator-primary" type="submit" [disabled]="notFound">Registrar seguimiento</button>
+  </div>
+</form>
+
+<section class="operator-panel">
+  <div class="operator-panel-head"><div><p class="operator-eyebrow">Trazabilidad</p><h2>Historial de seguimientos</h2></div></div>
+  <div class="operator-table-wrap">
+    <table class="operator-table">
+      <thead><tr><th>Fecha</th><th>Hora</th><th>Actor</th><th>Nota</th></tr></thead>
+      <tbody>
+        @for (entry of history(); track $index) {
+          <tr><td>{{ entry.date }}</td><td>{{ entry.time }}</td><td>{{ entry.actor }}</td><td>{{ entry.note }}</td></tr>
+        }
+      </tbody>
+    </table>
+    @if (!hasHistory()) {
+      <p class="operator-copy">Aún no se han registrado seguimientos para esta reserva.</p>
+    }
+  </div>
+</section>

@@ -6,25 +6,95 @@
   <div><p class="operator-eyebrow">Antes de la salida</p><h2>Lo reservado y lo prestado deben mantenerse diferenciados.</h2></div>
   <p>Registra servicios prestados, novedades y costos reales sin alterar la proyección comercial.</p>
 </section>
+
 <section class="operator-panel">
   <div class="operator-panel-head">
     <div><p class="operator-eyebrow">Próximas ejecuciones</p><h2>Salidas por preparar</h2></div>
-    <span class="operator-status is-confirmed">4 próximas</span>
+    <span class="operator-status is-confirmed">{{ upcomingCountLabel() }}</span>
   </div>
   <div class="operator-table-wrap">
     <table class="operator-table">
-      <thead><tr><th>Fecha</th><th>Servicio</th><th>Reservas</th><th>Estado</th><th>Acción</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Servicio</th><th>Reserva</th><th>Estado</th><th>Acción</th></tr></thead>
       <tbody>
-        <tr><td>13 sep 2026</td><td><strong>Rafting y acampada</strong></td><td>4 reservas · 8 viajeros</td><td><span class="operator-status is-confirmed">Confirmada</span></td><td><button type="button">Registrar ejecución</button></td></tr>
-        <tr><td>15 sep 2026</td><td><strong>Tour Montañas</strong></td><td>6 reservas · 12 viajeros</td><td><span class="operator-status is-pending">Pendiente de pago</span></td><td><a>Ver pagos</a></td></tr>
+        @for (reservation of upcoming(); track reservation.code) {
+          <tr>
+            <td>{{ reservation.date }}</td>
+            <td><strong>{{ reservation.service }}</strong></td>
+            <td>#{{ reservation.code }} · {{ reservation.travelers }} viajeros</td>
+            <td><span class="operator-status" [class]="reservation.statusClass">{{ reservation.status }}</span></td>
+            <td>
+              @if (canExecute(reservation)) {
+                <a [routerLink]="['/operator/operations/register-execution']" [queryParams]="{ reservation: reservation.code }">Registrar ejecución</a>
+              } @else {
+                <a routerLink="/operator/payments">Ver pagos</a>
+              }
+            </td>
+          </tr>
+        }
       </tbody>
     </table>
   </div>
+  @if (upcoming().length === 0) {
+    <p class="operator-copy">No hay próximas ejecuciones pendientes de preparar.</p>
+  }
 </section>
+
+<section class="operator-panel">
+  <div class="operator-panel-head">
+    <div><p class="operator-eyebrow">Trazabilidad</p><h2>Ejecuciones registradas</h2></div>
+  </div>
+  @if (!hasRegistered()) {
+    <p class="operator-copy">Aún no se han registrado ejecuciones.</p>
+  } @else {
+    <div class="operator-table-wrap">
+      <table class="operator-table">
+        <thead><tr><th>Fecha</th><th>Servicio</th><th>Reservado</th><th>Ejecutado</th><th>Causal</th><th>Estado</th><th>Acción</th></tr></thead>
+        <tbody>
+          @for (item of registered(); track item.reservation.code) {
+            <tr>
+              <td>{{ item.reservation.date }}</td>
+              <td><strong>{{ item.reservation.service }}</strong></td>
+              <td>{{ item.execution.reserved }} viajeros</td>
+              <td>{{ executedLabel(item.execution) }}</td>
+              <td>{{ item.execution.causal || '—' }}</td>
+              <td><span class="operator-status" [class]="item.reservation.statusClass">{{ item.reservation.status }}</span></td>
+              <td><a [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: item.reservation.code }">Ver detalle</a></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
 <section class="operator-panel">
   <div class="operator-panel-head">
     <div><p class="operator-eyebrow">Costos operacionales</p><h2>Registro real de la ejecución</h2></div>
-    <button class="operator-outline" type="button">Registrar costo</button>
+    <button class="operator-outline" type="button" [disabled]="!hasRegistered()" (click)="openCostPanel()">Registrar costo</button>
   </div>
   <p class="operator-copy">Los costos operacionales se registran para servicios ejecutados y se diferencian del valor comercial vendido.</p>
+  @if (!hasRegistered()) {
+    <p class="operator-copy">Disponible cuando exista una ejecución registrada.</p>
+  }
+  @if (costPanelOpen()) {
+    <form (submit)="onCostSubmit($event)" novalidate>
+      <div class="operator-form-grid">
+        <label>Ejecución asociada
+          <select name="execution" required>
+            <option value="">Selecciona una ejecución registrada</option>
+            @for (item of registered(); track item.reservation.code) {
+              <option [value]="item.reservation.code">#{{ item.reservation.code }} · {{ item.reservation.service }} · {{ item.reservation.date }}</option>
+            }
+          </select>
+        </label>
+        <label>Concepto<input name="concept" required type="text" placeholder="Describe el costo operacional" /></label>
+        <label>Valor<input name="amount" required type="number" min="1" inputmode="numeric" /></label>
+      </div>
+      <p class="operator-form-feedback" [class.is-valid]="costFeedbackValid()">{{ costFeedback() }}</p>
+      <div class="operator-form-actions">
+        <button class="operator-outline" type="button" (click)="cancelCostPanel()">Cancelar</button>
+        <button class="operator-primary" type="submit">Registrar costo</button>
+      </div>
+    </form>
+  }
 </section>

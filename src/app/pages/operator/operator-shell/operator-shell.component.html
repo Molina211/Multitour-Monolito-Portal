@@ -1,16 +1,21 @@
 <main class="operator-shell">
   <aside class="operator-sidebar">
     <a class="operator-brand" routerLink="/operator">MULTITOUR</a>
-    <p class="operator-role">Administrador del operador</p>
+    <p class="operator-role">{{ roleService.roleLabel() }}</p>
     <nav class="operator-nav" aria-label="Administración del operador">
       <a routerLink="/operator" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">Resumen</a>
       <a routerLink="/operator/reservations" routerLinkActive="is-active">Reservas</a>
       <a routerLink="/operator/catalog" routerLinkActive="is-active">Catálogos</a>
-      <a routerLink="/operator/discounts" routerLinkActive="is-active">Descuentos</a>
+      @if (roleService.isAdmin()) {
+        <a routerLink="/operator/discounts" routerLinkActive="is-active">Descuentos</a>
+      }
       <a routerLink="/operator/payments" routerLinkActive="is-active">Pagos</a>
-      <a>Caja</a>
+      <a routerLink="/operator/cash" routerLinkActive="is-active">Caja</a>
       <a routerLink="/operator/operations" routerLinkActive="is-active">Operación</a>
-      <a>Reportes</a>
+      <a routerLink="/operator/reports" routerLinkActive="is-active">Reportes</a>
+      @if (roleService.isAdmin()) {
+        <a routerLink="/operator/collaborators" routerLinkActive="is-active">Colaboradores</a>
+      }
     </nav>
     <a class="operator-signout" routerLink="/login">Cerrar sesión</a>
   </aside>

@@ -21,6 +21,17 @@
         </button>
       </div>
 
+      @if (role() === 'staff') {
+        <div class="travel-login-role-switch" aria-label="Rol dentro del equipo del operador">
+          <button class="travel-login-role" [class.is-active]="staffRole() === 'admin'" type="button" [attr.aria-pressed]="staffRole() === 'admin'" (click)="selectStaffRole('admin')">
+            Administrador
+          </button>
+          <button class="travel-login-role" [class.is-active]="staffRole() === 'colaborador'" type="button" [attr.aria-pressed]="staffRole() === 'colaborador'" (click)="selectStaffRole('colaborador')">
+            Colaborador
+          </button>
+        </div>
+      }
+
       <form class="travel-login-form" (submit)="onSubmit($event)" novalidate>
         <div class="travel-login-field">
           <label for="login-id">Correo Electronico</label>

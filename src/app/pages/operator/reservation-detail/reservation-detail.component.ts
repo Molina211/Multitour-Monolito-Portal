@@ -1,4 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   OPERATOR_RESERVATIONS,
@@ -18,7 +19,7 @@ function formatCOP(value: number): string {
 @Component({
   selector: 'app-operator-reservation-detail',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, DatePipe],
   templateUrl: './reservation-detail.component.html',
   styleUrl: './reservation-detail.component.css',
 })
@@ -29,6 +30,16 @@ export class ReservationDetailComponent {
   readonly code = this.route.snapshot.queryParamMap.get('reservation') || 'RES-1842';
   reservation: OperatorReservation | undefined = this.reservationService.getReservation(this.code);
   adjustment: ReservationAdjustment | null = this.reservationService.getAdjustment(this.code);
+
+  readonly canCancelOrModify = this.reservation
+    ? this.reservationService.isEligibleForCancelOrModify(this.reservation.statusClass)
+    : false;
+
+  // RF-015B (regla 1): cancelar NUNCA borra la reserva, solo cambia su estado; la causal
+  // debe quedar visible como historial incluso cuando no exista devolucion que gestionar
+  // (esta se muestra en el panel de devolucion cuando si existe, para no duplicarla).
+  readonly cancellation = this.reservationService.getReservationCancellation(this.code);
+  readonly showCancellationHistory = Boolean(this.cancellation) && !this.reservation?.refundOrigin;
 
   private readonly originalFinal = OPERATOR_RESERVATIONS[this.code]?.final;
 

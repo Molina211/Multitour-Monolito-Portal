@@ -1,0 +1,19 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Gestión del equipo</p><h1>Detalle del colaborador</h1></div>
+  <a class="operator-outline" routerLink="/operator/collaborators">Volver a colaboradores</a>
+</header>
+
+@if (collaborator; as collaborator) {
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Colaborador</p><h2>{{ collaborator.name }}</h2>
+    <div class="operator-detail-list">
+      <div><span>Nombre</span><strong>{{ collaborator.name }}</strong></div>
+      <div><span>Correo / usuario de acceso</span><strong>{{ collaborator.email }}</strong></div>
+      <div><span>Rol</span><strong>{{ collaborator.role }}</strong></div>
+      <div><span>Tenant</span><strong>{{ tenantName }}</strong></div>
+      <div><span>Fecha de registro</span><strong>{{ collaborator.createdAt | date: 'medium' }}</strong></div>
+    </div>
+  </section>
+} @else {
+  <p class="operator-access-note">No se encontró el colaborador seleccionado.</p>
+}

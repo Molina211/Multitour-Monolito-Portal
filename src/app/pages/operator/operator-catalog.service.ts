@@ -38,6 +38,8 @@ export interface AssociatedEstablishment {
 const SERVICE_STATUS_KEY = 'multitour-service-status';
 const NEW_SERVICE_CATALOG_KEY = 'multitour-operator-catalog';
 const ASSOCIATED_ESTABLISHMENTS_KEY = 'multitour-associated-establishments';
+// Misma clave ya usada en la landing aprobada (app.js: OPERATOR_SERVICE_DEPARTURES_KEY).
+const SERVICE_DEPARTURES_KEY = 'multitour-service-departures';
 
 // Mismos registros demo y catalogos ya confirmados en la landing aprobada (app.js: OPERATOR_CATALOG_DEFAULTS).
 // Transporte queda fuera: su pantalla de gestion no forma parte de este bloque.
@@ -115,5 +117,19 @@ export class OperatorCatalogService {
     const entry = OPERATOR_CATALOG_DEFAULTS[catalogId];
     if (!entry) return 0;
     return entry.records.filter((record) => this.isActive(catalogId, record.key, record.active)).length;
+  }
+
+  // Salidas reales configuradas por servicio (RF-007/linea 452: distintas de la vigencia
+  // comercial). Fuente unica reutilizada por Crear reserva: cuando el Administrador agrega
+  // o elimina una salida aqui, Crear reserva lo refleja automaticamente sin duplicar la lista.
+  getDepartures(serviceKey: string): string[] | null {
+    const map = readStorage<Record<string, string[]>>(SERVICE_DEPARTURES_KEY, {});
+    return map[serviceKey] || null;
+  }
+
+  setDepartures(serviceKey: string, dates: string[]): void {
+    const map = readStorage<Record<string, string[]>>(SERVICE_DEPARTURES_KEY, {});
+    map[serviceKey] = dates;
+    localStorage.setItem(SERVICE_DEPARTURES_KEY, JSON.stringify(map));
   }
 }

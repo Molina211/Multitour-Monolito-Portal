@@ -28,6 +28,22 @@ import { NewDiscountComponent } from './pages/operator/new-discount/new-discount
 import { EditDiscountComponent } from './pages/operator/edit-discount/edit-discount.component';
 import { OperationComponent } from './pages/operator/operation/operation.component';
 import { PaymentsComponent } from './pages/operator/payments/payments.component';
+import { ValidateSupportComponent } from './pages/operator/validate-support/validate-support.component';
+import { PaymentFollowupComponent } from './pages/operator/payment-followup/payment-followup.component';
+import { RefundRequestsComponent } from './pages/operator/refund-requests/refund-requests.component';
+import { RefundDetailComponent } from './pages/operator/refund-detail/refund-detail.component';
+import { ManageRefundComponent } from './pages/operator/manage-refund/manage-refund.component';
+import { CancelOrModifyReservationComponent } from './pages/operator/cancel-or-modify/cancel-or-modify.component';
+import { CashComponent } from './pages/operator/cash/cash.component';
+import { CashHistoryComponent } from './pages/operator/cash-history/cash-history.component';
+import { CashMonthlyComponent } from './pages/operator/cash-monthly/cash-monthly.component';
+import { RegisterExecutionComponent } from './pages/operator/register-execution/register-execution.component';
+import { ReportsComponent } from './pages/operator/reports/reports.component';
+import { colaboradorRestrictedGuard } from './pages/operator/colaborador-restricted.guard';
+import { OPERATOR_COLLABORATOR_CAN_VALIDATE_SUPPORT } from './pages/operator/operator-role.service';
+import { CollaboratorsComponent } from './pages/operator/collaborators/collaborators.component';
+import { RegisterCollaboratorComponent } from './pages/operator/register-collaborator/register-collaborator.component';
+import { CollaboratorDetailComponent } from './pages/operator/collaborator-detail/collaborator-detail.component';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent },
@@ -56,17 +72,81 @@ export const routes: Routes = [
       { path: 'reservations/created', component: ReservationCreatedComponent },
       { path: 'reservations/detail', component: ReservationDetailComponent },
       { path: 'reservations/payment', component: PaymentManagementComponent },
-      { path: 'reservations/apply-discount', component: ApplyDiscountComponent },
+      {
+        path: 'reservations/apply-discount',
+        component: ApplyDiscountComponent,
+        canActivate: [colaboradorRestrictedGuard],
+        data: { colaboradorFallback: '/operator/reservations' },
+      },
+      { path: 'reservations/manage-refund', component: ManageRefundComponent },
+      { path: 'reservations/cancel-or-modify', component: CancelOrModifyReservationComponent },
       { path: 'catalog', component: CatalogComponent },
-      { path: 'catalog/new-service', component: NewServiceComponent },
+      {
+        path: 'catalog/new-service',
+        component: NewServiceComponent,
+        canActivate: [colaboradorRestrictedGuard],
+        data: { colaboradorFallback: '/operator/catalog' },
+      },
+      // "Ver detalle" del Colaborador operativo reutiliza estas MISMAS rutas en modo solo
+      // lectura (sin crear/activar/desactivar); ya no se bloquean por completo.
       { path: 'catalog/tours', component: ManageCatalogComponent },
       { path: 'catalog/lodging', component: ManageLodgingComponent },
       { path: 'catalog/food', component: ManageFoodComponent },
-      { path: 'discounts', component: DiscountsComponent },
-      { path: 'discounts/new', component: NewDiscountComponent },
-      { path: 'discounts/edit', component: EditDiscountComponent },
+      {
+        path: 'discounts',
+        component: DiscountsComponent,
+        canActivate: [colaboradorRestrictedGuard],
+        data: { colaboradorFallback: '/operator' },
+      },
+      {
+        path: 'discounts/new',
+        component: NewDiscountComponent,
+        canActivate: [colaboradorRestrictedGuard],
+        data: { colaboradorFallback: '/operator' },
+      },
+      {
+        path: 'discounts/edit',
+        component: EditDiscountComponent,
+        canActivate: [colaboradorRestrictedGuard],
+        data: { colaboradorFallback: '/operator' },
+      },
       { path: 'operations', component: OperationComponent },
+      { path: 'operations/register-execution', component: RegisterExecutionComponent },
       { path: 'payments', component: PaymentsComponent },
+      {
+        path: 'payments/validate',
+        component: ValidateSupportComponent,
+        ...(OPERATOR_COLLABORATOR_CAN_VALIDATE_SUPPORT
+          ? {}
+          : { canActivate: [colaboradorRestrictedGuard], data: { colaboradorFallback: '/operator/payments' } }),
+      },
+      { path: 'payments/followup', component: PaymentFollowupComponent },
+      { path: 'payments/refunds', component: RefundRequestsComponent },
+      { path: 'payments/refunds/detail', component: RefundDetailComponent },
+      { path: 'cash', component: CashComponent },
+      { path: 'cash/history', component: CashHistoryComponent },
+      { path: 'cash/monthly', component: CashMonthlyComponent },
+      { path: 'reports', component: ReportsComponent },
+      // Gestion de colaboradores: solo el Administrador del operador puede acceder (PDR
+      // linea 102/112/116/947: el Colaborador operativo no registra ni administra usuarios).
+      {
+        path: 'collaborators',
+        component: CollaboratorsComponent,
+        canActivate: [colaboradorRestrictedGuard],
+        data: { colaboradorFallback: '/operator' },
+      },
+      {
+        path: 'collaborators/new',
+        component: RegisterCollaboratorComponent,
+        canActivate: [colaboradorRestrictedGuard],
+        data: { colaboradorFallback: '/operator' },
+      },
+      {
+        path: 'collaborators/detail',
+        component: CollaboratorDetailComponent,
+        canActivate: [colaboradorRestrictedGuard],
+        data: { colaboradorFallback: '/operator' },
+      },
     ],
   },
   { path: '**', redirectTo: '' },

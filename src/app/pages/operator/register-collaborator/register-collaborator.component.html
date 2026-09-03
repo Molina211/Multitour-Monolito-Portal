@@ -1,0 +1,63 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Gestión del equipo</p><h1>Registrar colaborador</h1></div>
+  <a class="operator-outline" routerLink="/operator/collaborators">Volver a colaboradores</a>
+</header>
+
+<section class="operator-tenant-context">
+  <span>Operador activo</span><strong>{{ tenantName }}</strong>
+  <p>El colaborador queda asociado automáticamente a este operador; no es posible elegir otro tenant.</p>
+</section>
+
+<form class="operator-reservation-form" (submit)="onSubmit($event)" novalidate>
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Datos del colaborador</p><h2>Identidad y acceso</h2>
+    <div class="operator-form-grid">
+      <label>Nombre completo<input name="name" required type="text" placeholder="Ej. Camila Restrepo" /></label>
+      <label>Correo electrónico / usuario de acceso<input name="email" required type="email" placeholder="camila@travesianatural.co" /></label>
+    </div>
+  </section>
+
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Rol</p><h2>Rol asignado</h2>
+    <div class="operator-form-grid">
+      <label>Rol<input readonly type="text" [value]="fixedRole" /></label>
+    </div>
+    <p class="operator-copy">El rol queda fijo en "Colaborador operativo"; no es posible asignar Administrador ni crear roles personalizados.</p>
+  </section>
+
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Credenciales</p><h2>Acceso inicial</h2>
+    <div class="operator-form-grid">
+      <label>
+        <span>Contraseña inicial</span>
+        <div class="travel-login-password-wrap">
+          <input name="initialPassword" [type]="passwordVisible() ? 'text' : 'password'" placeholder="Ingresa la contraseña" autocomplete="new-password" />
+          <button class="travel-login-visibility" type="button" (click)="togglePasswordVisibility()">Ver</button>
+        </div>
+      </label>
+      <label>
+        <span>Confirmar contraseña</span>
+        <div class="travel-login-password-wrap">
+          <input name="confirmPassword" [type]="confirmVisible() ? 'text' : 'password'" placeholder="Repite la contraseña" autocomplete="new-password" />
+          <button class="travel-login-visibility" type="button" (click)="toggleConfirmVisibility()">Ver</button>
+        </div>
+      </label>
+    </div>
+    <div class="password-policy platform-password-policy" aria-label="Requisitos de la contraseña">
+      <p>La contraseña debe contener:</p>
+      <ul>
+        <li>Mínimo 8 caracteres</li>
+        <li>Al menos una letra mayúscula</li>
+        <li>Al menos una letra minúscula</li>
+        <li>Al menos un número</li>
+        <li>Al menos un carácter especial</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="operator-form-feedback" [class.is-valid]="feedback() && !feedbackIsError()">{{ feedback() }}</p>
+  <div class="operator-form-actions">
+    <a class="operator-outline" routerLink="/operator/collaborators">Cancelar</a>
+    <button class="operator-primary" type="submit">Registrar colaborador</button>
+  </div>
+</form>

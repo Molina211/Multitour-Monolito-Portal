@@ -1,0 +1,89 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Control diario</p><h1>Caja</h1></div>
+  @if (roleService.isAdmin()) {
+    <button class="operator-primary" type="button" [disabled]="closed()" (click)="openAdjust()">Ajustar base diaria</button>
+  }
+</header>
+@if (roleService.isAdmin()) {
+  <p class="operator-access-note">Solo el Administrador del operador puede modificar la base diaria.</p>
+}
+
+@if (adjustPanelOpen()) {
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Ajuste</p><h2>Ajustar base diaria</h2>
+    <form (submit)="onAdjustSubmit($event)" novalidate>
+      <div class="operator-form-grid">
+        <label>Nueva base diaria<input name="base" required type="number" min="0" inputmode="numeric" [value]="currentBase()" /></label>
+      </div>
+      <p class="operator-form-feedback" [class.is-valid]="adjustFeedbackValid()">{{ adjustFeedback() }}</p>
+      <div class="operator-form-actions">
+        <button class="operator-outline" type="button" (click)="cancelAdjust()">Cancelar</button>
+        <button class="operator-primary" type="submit">Guardar base diaria</button>
+      </div>
+    </form>
+  </section>
+}
+
+<section class="operator-hero operator-hero-compact">
+  <div><p class="operator-eyebrow">{{ dayStatusLabel() }}</p><h2>{{ totalHeadline() }}</h2></div>
+  <p>La base diaria no se suma nuevamente como ingreso en la consolidación mensual.</p>
+</section>
+
+<section class="operator-metrics operator-metrics--daily">
+  <article><span>Base inicial</span><strong>{{ baseLabel() }}</strong><small>Parametrizada para hoy</small></article>
+  <article><span>Ingresos</span><strong>{{ ingresosLabel() }}</strong><small>Pagos recibidos y validados</small></article>
+  <article><span>Pagos operacionales</span><strong>{{ pagosOperacionalesLabel() }}</strong><small>Obligaciones operativas del día</small></article>
+  <article><span>Gastos</span><strong>{{ gastosLabel() }}</strong><small>Salidas administrativas o menores</small></article>
+  <article><span>Devoluciones</span><strong>{{ devolucionesLabel() }}</strong><small>Salida efectiva del día</small></article>
+</section>
+
+<section class="operator-panel">
+  <div class="operator-panel-head">
+    <div><p class="operator-eyebrow">Movimientos</p><h2>Registro de la jornada</h2></div>
+    <button class="operator-outline" type="button" [disabled]="closed()" (click)="closeDay()">Cerrar caja</button>
+  </div>
+  <form (submit)="onMovementSubmit($event)" novalidate>
+    <div class="operator-form-grid">
+      <label>Tipo
+        <select name="type" required [disabled]="closed()">
+          <option value="">Selecciona un tipo</option>
+          <option value="Ingreso">Ingreso</option>
+          <option value="Pago operacional">Pago operacional</option>
+          <option value="Gasto">Gasto</option>
+        </select>
+      </label>
+      <label>Concepto<input name="concept" required type="text" placeholder="Describe el movimiento" [disabled]="closed()" /></label>
+      <label>Valor<input name="amount" required type="number" min="1" inputmode="numeric" [disabled]="closed()" /></label>
+    </div>
+    <p class="operator-form-feedback" [class.is-valid]="movementFeedbackValid()">{{ movementFeedback() }}</p>
+    <div class="operator-form-actions">
+      <button class="operator-primary" type="submit" [disabled]="closed()">Registrar movimiento</button>
+    </div>
+  </form>
+  <div class="operator-table-wrap">
+    <table class="operator-table">
+      <thead><tr><th>Hora</th><th>Tipo</th><th>Concepto</th><th>Valor</th><th>Responsable</th></tr></thead>
+      <tbody>
+        @for (movement of movementRows(); track $index) {
+          <tr>
+            <td>{{ movement.time }}</td>
+            <td>{{ movement.type }}</td>
+            <td>{{ movement.concept }}</td>
+            <td>{{ movement.displayAmount }}</td>
+            <td>{{ movement.responsible }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="operator-panel">
+  <div class="operator-panel-head">
+    <div><p class="operator-eyebrow">Consulta</p><h2>Historial y consolidación</h2></div>
+  </div>
+  <div class="operator-form-actions">
+    <a class="operator-outline" routerLink="/operator/cash/history">Historial de caja</a>
+    <a class="operator-outline" routerLink="/operator/cash/monthly">Consolidación mensual</a>
+  </div>
+</section>

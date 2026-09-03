@@ -2,6 +2,10 @@ import { Injectable, signal } from '@angular/core';
 
 export interface OperatorReservation {
   code: string;
+  // Fecha real de creacion (YYYY-MM-DD). Los registros base de demo no tienen este dato
+  // historico (no existe, no se inventa): solo las reservas creadas en vivo via Crear
+  // reserva reciben un createdAt real, igual a OPERATOR_TODAY_DATE.
+  createdAt?: string;
   customer: string;
   email: string;
   service: string;
@@ -23,6 +27,20 @@ export interface OperatorReservation {
   pendingTransferAmount?: number;
   supportPending?: boolean;
   hasAdditionalDiscount?: boolean;
+  // Origen de una solicitud de devolucion (RF-015B): solo presente cuando la reserva ya
+  // tiene una cancelacion o modificacion registrada con causal y valor potencial a devolver.
+  refundOrigin?: RefundOrigin;
+}
+
+export interface RefundOrigin {
+  type: 'Cancelación' | 'Modificación';
+  causal: string;
+  potentialAmount: string;
+  // No existe en el PDR ninguna formula/tabla parametrizada para calcular el valor a
+  // devolver: mientras esto sea true, potentialAmount es solo un texto de estado
+  // ("pendiente de calculo"), nunca un monto, y no puede autorizarse ni ejecutarse.
+  pendingCalculation: boolean;
+  registeredAt: string;
 }
 
 export interface ReservationAdjustment {
@@ -36,12 +54,80 @@ export interface PendingSupportRecord {
   customer: string;
   method: string;
   amount: string;
+  support: string;
   status: string;
+  action: 'validate' | 'follow-up';
 }
+
+export interface PaymentSupportDecision {
+  status: string;
+  paid: string;
+  balance: string;
+  decidedAt: string;
+}
+
+export interface PaymentSupportLogEntry {
+  reservation: string;
+  action: 'approve' | 'reject';
+  status: string;
+  actor: string;
+  reason: string;
+  date: string;
+  time: string;
+}
+
+export interface PaymentFollowupEntry {
+  note: string;
+  actor: string;
+  date: string;
+  time: string;
+}
+
+export interface ReservationCancellation {
+  causal: string;
+  registeredAt: string;
+}
+
+export interface ReservationModification {
+  service: string;
+  date: string;
+  travelers: number;
+  companions: string;
+  projected: string;
+  discount: string;
+  final: string;
+  balance: string;
+  causal: string;
+  registeredAt: string;
+}
+
+// No existe en el PDR ninguna formula o tabla parametrizada para calcular el valor a
+// devolver (verificado exhaustivamente): toda solicitud de devolucion queda con el valor
+// "pendiente de calculo" hasta que esa condicion comercial se defina, y no puede
+// autorizarse ni ejecutarse mientras tanto.
+export const REFUND_PENDING_CALCULATION_LABEL = 'Pendiente de parametrización comercial';
+
+// Fecha de referencia ("hoy") ya usada y aprobada en el encabezado del dashboard del
+// operador (dashboard.component.html: "Martes, 1 sep 2026"). Se reutiliza la misma, no se
+// inventa una fecha nueva.
+export const OPERATOR_TODAY_DATE = '2026-09-01';
 
 const DRAFT_STORAGE_KEY = 'operatorReservationDraft';
 // Misma clave ya usada en la landing aprobada (app.js: OPERATOR_RESERVATION_ADJUSTMENTS_KEY).
 const ADJUSTMENTS_STORAGE_KEY = 'multitour-reservation-adjustments';
+// Mismas claves ya usadas en la landing aprobada (app.js: OPERATOR_PAYMENT_SUPPORT_STATE_KEY / _LOG_KEY).
+const PAYMENT_SUPPORT_STATE_KEY = 'multitour-payment-support-state';
+const PAYMENT_SUPPORT_LOG_KEY = 'multitour-payment-support-log';
+// Misma clave ya usada en la landing aprobada (app.js: OPERATOR_PAYMENT_FOLLOWUPS_KEY).
+const PAYMENT_FOLLOWUPS_KEY = 'multitour-payment-followups';
+// Misma clave ya usada en la landing aprobada (app.js: OPERATOR_REFUND_ORIGINS_KEY).
+const REFUND_ORIGINS_KEY = 'multitour-refund-origins';
+// Misma clave ya usada en la landing aprobada (app.js: OPERATOR_RESERVATION_CANCELLATIONS_KEY).
+const RESERVATION_CANCELLATIONS_KEY = 'multitour-reservation-cancellations';
+// Misma clave ya usada en la landing aprobada (app.js: OPERATOR_RESERVATION_MODIFICATIONS_KEY).
+const RESERVATION_MODIFICATIONS_KEY = 'multitour-reservation-modifications';
+const RESOLVED_SUPPORT_STATUSES = ['Pagado', 'Parcial', 'Rechazado'];
+const CANCEL_OR_MODIFY_INELIGIBLE_STATUSES = ['is-finalized', 'is-cancelled'];
 
 function parseCOP(value: string | undefined): number {
   return Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
@@ -63,9 +149,18 @@ export const OPERATOR_RESERVATIONS: Record<string, OperatorReservation> = {
 
 // Mismos registros demo de soportes pendientes ya confirmados en la landing aprobada (admin-pagos.html).
 const PENDING_SUPPORT_RECORDS: PendingSupportRecord[] = [
-  { code: 'RES-1842', customer: 'Laura Gómez', method: 'Transferencia', amount: '$1.039.200', status: 'En validación' },
-  { code: 'RES-1837', customer: 'Juliana Cruz', method: 'Abono', amount: '$800.000', status: 'Saldo pendiente' },
+  { code: 'RES-1842', customer: 'Laura Gómez', method: 'Transferencia', amount: '$1.039.200', support: 'comprobante-transferencia-RES-1842.pdf', status: 'En validación', action: 'validate' },
+  { code: 'RES-1837', customer: 'Juliana Cruz', method: 'Abono', amount: '$800.000', support: '', status: 'Saldo pendiente', action: 'follow-up' },
 ];
+
+function readStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function readDraft(): OperatorReservation | null {
   try {
@@ -94,9 +189,81 @@ export class OperatorReservationService {
   readonly reservationCodesInOrder = ['RES-1842', 'RES-1841', 'RES-1840', 'RES-1837', 'RES-1829', 'RES-1822'];
 
   // El contador de "pendientes" de la pantalla Pagos debe salir de estos registros reales,
-  // nunca de un numero quemado.
+  // nunca de un numero quemado. El estado refleja la ultima decision registrada, si existe.
   getPendingSupportRecords(): PendingSupportRecord[] {
-    return PENDING_SUPPORT_RECORDS;
+    const decisions = readStorage<Record<string, PaymentSupportDecision>>(PAYMENT_SUPPORT_STATE_KEY, {});
+    return PENDING_SUPPORT_RECORDS.map((record) => {
+      const decision = decisions[record.code];
+      return decision ? { ...record, status: decision.status } : record;
+    });
+  }
+
+  isPendingSupport(record: PendingSupportRecord): boolean {
+    return !RESOLVED_SUPPORT_STATUSES.includes(record.status);
+  }
+
+  getPaymentSupportDecision(code: string): PaymentSupportDecision | null {
+    return readStorage<Record<string, PaymentSupportDecision>>(PAYMENT_SUPPORT_STATE_KEY, {})[code] || null;
+  }
+
+  // Al aprobar: recalcula sobre la MISMA reserva (Pagado si cubre el saldo, Parcial si no).
+  // Al rechazar: conserva el saldo pendiente sin tocarlo. Ambos casos quedan en la
+  // bitacora de trazabilidad (append-only, nunca se sobrescribe un intento previo).
+  decidePaymentSupport(code: string, action: 'approve' | 'reject', reason: string, actor: string): PaymentSupportDecision {
+    const record = PENDING_SUPPORT_RECORDS.find((item) => item.code === code);
+    const reservation = OPERATOR_RESERVATIONS[code];
+    const decidedAt = new Date();
+
+    let paid = reservation ? parseCOP(reservation.paid) : 0;
+    let balance = reservation ? parseCOP(reservation.balance) : 0;
+    let status: string;
+    if (action === 'approve') {
+      const validatedAmount = record ? parseCOP(record.amount) : 0;
+      paid += validatedAmount;
+      balance = reservation ? Math.max(0, parseCOP(reservation.final) - paid) : 0;
+      status = balance === 0 ? 'Pagado' : 'Parcial';
+    } else {
+      status = 'Rechazado';
+    }
+
+    const decision: PaymentSupportDecision = { status, paid: formatCOP(paid), balance: formatCOP(balance), decidedAt: decidedAt.toISOString() };
+    const decisions = readStorage<Record<string, PaymentSupportDecision>>(PAYMENT_SUPPORT_STATE_KEY, {});
+    decisions[code] = decision;
+    localStorage.setItem(PAYMENT_SUPPORT_STATE_KEY, JSON.stringify(decisions));
+
+    const log = readStorage<PaymentSupportLogEntry[]>(PAYMENT_SUPPORT_LOG_KEY, []);
+    log.push({
+      reservation: code,
+      action,
+      status,
+      actor,
+      reason,
+      date: decidedAt.toISOString().slice(0, 10),
+      time: decidedAt.toTimeString().slice(0, 5),
+    });
+    localStorage.setItem(PAYMENT_SUPPORT_LOG_KEY, JSON.stringify(log));
+
+    return decision;
+  }
+
+  // No existe hoy parametrizacion de tiempos (Configurar pagos) confirmada en el PDR ni en el
+  // catalogo actual: se informa explicitamente en vez de inventar un plazo o vigencia.
+  getPaymentDeadlineNote(_code: string): string {
+    return 'Sin parametrización de plazo definida para esta modalidad.';
+  }
+
+  getFollowups(code: string): PaymentFollowupEntry[] {
+    return readStorage<Record<string, PaymentFollowupEntry[]>>(PAYMENT_FOLLOWUPS_KEY, {})[code] || [];
+  }
+
+  // Historico de seguimientos: cada nota se agrega a la lista existente, nunca la reemplaza.
+  addFollowup(code: string, note: string, actor: string): PaymentFollowupEntry {
+    const now = new Date();
+    const entry: PaymentFollowupEntry = { note, actor, date: now.toISOString().slice(0, 10), time: now.toTimeString().slice(0, 5) };
+    const all = readStorage<Record<string, PaymentFollowupEntry[]>>(PAYMENT_FOLLOWUPS_KEY, {});
+    all[code] = [...(all[code] || []), entry];
+    localStorage.setItem(PAYMENT_FOLLOWUPS_KEY, JSON.stringify(all));
+    return entry;
   }
 
   // Antes de ejecucion (Pendiente de pago / Confirmada) la reserva admite modificaciones;
@@ -135,7 +302,100 @@ export class OperatorReservationService {
         hasAdditionalDiscount: true,
       };
     }
+
+    const refundOrigin = this.getRefundOrigin(code);
+    if (refundOrigin) {
+      reservation = { ...reservation, refundOrigin };
+    }
+
+    // Una modificacion registrada (RF-015A, linea 383) actualiza la MISMA reserva: nuevo
+    // servicio/fecha/viajeros/hospedaje y sus valores recalculados. Los pagos ya
+    // registrados no cambian.
+    const modification = this.getReservationModification(code);
+    if (modification) {
+      reservation = {
+        ...reservation,
+        service: modification.service,
+        date: modification.date,
+        travelers: modification.travelers,
+        companions: modification.companions,
+        projected: modification.projected,
+        discount: modification.discount,
+        final: modification.final,
+        balance: modification.balance,
+      };
+    }
+
+    // Una cancelacion registrada (RF-008A, linea 972) siempre deja la reserva en
+    // "Cancelada", tenga o no dinero pagado que devolver: nunca debe seguir mostrandose
+    // en un estado anterior como "En ejecucion". El estado de ejecucion del servicio pasa
+    // a "No ejecutada" (mismo valor ya confirmado para reservas canceladas, ej. RES-1822):
+    // no se inventa un estado nuevo. Esto es independiente de si existe refundOrigin
+    // (que solo aparece cuando ademas hay pagado > $0).
+    if (this.getReservationCancellation(code)) {
+      reservation = { ...reservation, status: 'Cancelada', statusClass: 'is-cancelled', execution: 'No ejecutada' };
+    }
     return reservation;
+  }
+
+  // "Cancelar o modificar reserva" solo esta disponible antes de Finalizada/Cancelada
+  // (RF-008A, linea 972): esos estados ya son terminales.
+  isEligibleForCancelOrModify(statusClass: string): boolean {
+    return !CANCEL_OR_MODIFY_INELIGIBLE_STATUSES.includes(statusClass);
+  }
+
+  getRefundOrigin(code: string): RefundOrigin | null {
+    return readStorage<Record<string, RefundOrigin>>(REFUND_ORIGINS_KEY, {})[code] || null;
+  }
+
+  getReservationCancellation(code: string): ReservationCancellation | null {
+    return readStorage<Record<string, ReservationCancellation>>(RESERVATION_CANCELLATIONS_KEY, {})[code] || null;
+  }
+
+  getAllReservationCancellations(): ReservationCancellation[] {
+    return Object.values(readStorage<Record<string, ReservationCancellation>>(RESERVATION_CANCELLATIONS_KEY, {}));
+  }
+
+  getReservationModification(code: string): ReservationModification | null {
+    return readStorage<Record<string, ReservationModification>>(RESERVATION_MODIFICATIONS_KEY, {})[code] || null;
+  }
+
+  // Modificacion de reserva (RF-015A, linea 383): cambia servicio/fecha/viajeros de la
+  // MISMA reserva y recalcula valor proyectado, descuento, valor final y saldo. Los pagos
+  // ya registrados no se pierden (el saldo se recalcula sobre el pagado existente).
+  registerModification(code: string, modification: Omit<ReservationModification, 'registeredAt'>): void {
+    const all = readStorage<Record<string, ReservationModification>>(RESERVATION_MODIFICATIONS_KEY, {});
+    all[code] = { ...modification, registeredAt: new Date().toISOString() };
+    localStorage.setItem(RESERVATION_MODIFICATIONS_KEY, JSON.stringify(all));
+  }
+
+  // El estado "Cancelada" de la reserva es independiente de si existe o no valor
+  // potencial a devolver: una cancelacion con $0 pagado tambien debe dejar la reserva en
+  // "Cancelada", aunque no genere solicitud de devolucion.
+  //
+  // NO existe en el PDR ninguna formula/tabla parametrizada para calcular el valor a
+  // devolver (verificado exhaustivamente): si `hasPotentialRefund` es true, se guarda un
+  // refundOrigin con el monto "pendiente de calculo" (nunca un numero inventado).
+  registerCancelOrModify(code: string, type: 'Cancelación' | 'Modificación', causal: string, hasPotentialRefund: boolean): RefundOrigin | null {
+    const registeredAt = new Date().toISOString();
+    if (type === 'Cancelación') {
+      const cancellations = readStorage<Record<string, ReservationCancellation>>(RESERVATION_CANCELLATIONS_KEY, {});
+      cancellations[code] = { causal, registeredAt };
+      localStorage.setItem(RESERVATION_CANCELLATIONS_KEY, JSON.stringify(cancellations));
+    }
+
+    if (!hasPotentialRefund) return null;
+    const origin: RefundOrigin = {
+      type,
+      causal,
+      potentialAmount: REFUND_PENDING_CALCULATION_LABEL,
+      pendingCalculation: true,
+      registeredAt,
+    };
+    const all = readStorage<Record<string, RefundOrigin>>(REFUND_ORIGINS_KEY, {});
+    all[code] = origin;
+    localStorage.setItem(REFUND_ORIGINS_KEY, JSON.stringify(all));
+    return origin;
   }
 
   saveDraft(draft: OperatorReservation): void {

@@ -13,7 +13,7 @@
       <label>Nombre comercial<input name="name" required type="text" placeholder="Nombre del producto" /></label>
       @if (kind() === 'operational') {
         <label>Tipo
-          <select name="type" required>
+          <select name="type" required (change)="onTypeChange($any($event.target).value)">
             <option value="tour">Tour o actividad</option>
             <option value="lodging">Hospedaje</option>
             <option value="food">Alimentación</option>
@@ -32,6 +32,23 @@
         <label>Vigencia hasta<input name="end" required type="date" /></label>
         <label>Capacidad / cupo<input name="capacity" type="number" min="1" inputmode="numeric" placeholder="Opcional" /></label>
         <label>Restricciones operativas<textarea name="restrictions" placeholder="Opcional: condiciones que limitan la disponibilidad"></textarea></label>
+        @if (showDepartures()) {
+          <div class="operator-form-wide">
+            <p class="operator-eyebrow">Salidas disponibles</p>
+            <p class="operator-copy">Fechas reales de ejecución para reservar (no la vigencia comercial). Sin salidas configuradas, el servicio no podrá reservarse.</p>
+            <div class="operator-form-grid">
+              <label>Fecha de salida<input type="date" [value]="newDeparture()" (change)="setNewDeparture($any($event.target).value)" /></label>
+            </div>
+            <div class="operator-form-actions">
+              <button class="operator-outline" type="button" (click)="addDeparture()">Agregar salida</button>
+            </div>
+            <ul style="margin:12px 0 0;padding:0;list-style:none;display:grid;gap:6px;">
+              @for (row of departureRows(); track row.iso) {
+                <li>{{ row.label }} <button class="operator-outline" type="button" (click)="removeDeparture(row.iso)">Quitar</button></li>
+              }
+            </ul>
+          </div>
+        }
       } @else {
         <label>Tipo de establecimiento
           <select name="establishmentType" (change)="onEstablishmentTypeChange($any($event.target).value)">

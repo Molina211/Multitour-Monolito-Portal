@@ -1,28 +1,50 @@
 <header class="operator-topbar"><div><p class="operator-eyebrow">Multitour</p><h1>Control de la operación</h1></div><span class="operator-date">Martes, 1 sep 2026</span></header>
-<section class="operator-hero"><div><p class="operator-eyebrow">Vista diaria</p><h2>Decisiones comerciales y operativas en un solo lugar.</h2></div><p>Gestiona únicamente la información de tu operador: reservas, catálogo, descuentos, pagos, caja y ejecución.</p></section>
-<section class="operator-dashboard-section" aria-labelledby="daily-overview-title">
-  <div class="operator-section-heading"><div><p class="operator-eyebrow">Resumen diario</p><h2 id="daily-overview-title">Seguimiento de reservas y ejecución</h2></div><p>Indicadores obligatorios para priorizar la operación del día.</p></div>
-  <div class="operator-metrics operator-metrics--daily" aria-label="Indicadores diarios">
-    <article><span>Reservas creadas hoy</span><strong>12</strong><a routerLink="/operator/reservations">Ver reservas</a></article>
-    <article><span>Reservas pendientes de pago</span><strong>6</strong><a routerLink="/operator/reservations">Revisar reservas</a></article>
-    <article><span>Reservas confirmadas</span><strong>18</strong><a routerLink="/operator/reservations">Ver confirmadas</a></article>
-    <article><span>Reservas canceladas</span><strong>2</strong><a routerLink="/operator/reservations">Ver cancelaciones</a></article>
-    <article><span>Tours o servicios próximos a ejecutar</span><strong>4</strong><a>Ver operación</a></article>
-  </div>
-</section>
-<section class="operator-dashboard-section operator-dashboard-section--support" aria-labelledby="operational-pending-title">
-  <div class="operator-section-heading"><div><p class="operator-eyebrow">Pendientes operativos</p><h2 id="operational-pending-title">Validaciones y control de caja</h2></div></div>
-  <div class="operator-metrics operator-metrics--support">
-    <article><span>Pagos y soportes por validar</span><strong>3</strong><a>Gestionar pagos</a></article>
-    <article><span>Total operativo de caja</span><strong>$1.840.000</strong><p>Calculado con la base diaria y los movimientos registrados hoy.</p><a>Consultar caja</a></article>
-  </div>
-</section>
-<section class="operator-panel">
-  <div class="operator-panel-head"><div><p class="operator-eyebrow">Flujos principales</p><h2>¿Qué necesitas gestionar?</h2></div></div>
-  <div class="operator-action-grid">
-    <a routerLink="/operator/reservations"><strong>Reservas y clientes</strong><span>Registra y consulta reservas. Modifica cuando las condiciones parametrizadas del servicio lo permitan antes de la ejecución.</span></a>
-    <a routerLink="/operator/discounts"><strong>Descuentos y condiciones</strong><span>Parametriza vigencias, prioridades, topes y condiciones comerciales.</span></a>
-    <a><strong>Pagos y devoluciones</strong><span>Valida pagos y soportes, consulta saldos y autoriza devoluciones.</span></a>
-    <a><strong>Ejecución y costos</strong><span>Registra servicios prestados y no prestados, novedades y costos operacionales.</span></a>
-  </div>
-</section>
+
+@if (roleService.isAdmin()) {
+  <section class="operator-hero"><div><p class="operator-eyebrow">Vista diaria</p><h2>Decisiones comerciales y operativas en un solo lugar.</h2></div><p>Gestiona únicamente la información de tu operador: reservas, catálogo, descuentos, pagos, caja y ejecución.</p></section>
+  <section class="operator-dashboard-section" aria-labelledby="daily-overview-title">
+    <div class="operator-section-heading"><div><p class="operator-eyebrow">Resumen diario</p><h2 id="daily-overview-title">Seguimiento de reservas y ejecución</h2></div><p>Indicadores obligatorios para priorizar la operación del día.</p></div>
+    <div class="operator-metrics operator-metrics--daily" aria-label="Indicadores diarios">
+      <article><span>Reservas creadas hoy</span><strong>12</strong><a routerLink="/operator/reservations">Ver reservas</a></article>
+      <article><span>Reservas pendientes de pago</span><strong>6</strong><a routerLink="/operator/reservations">Revisar reservas</a></article>
+      <article><span>Reservas confirmadas</span><strong>18</strong><a routerLink="/operator/reservations">Ver confirmadas</a></article>
+      <article><span>Reservas canceladas</span><strong>2</strong><a routerLink="/operator/reservations">Ver cancelaciones</a></article>
+      <article><span>Tours o servicios próximos a ejecutar</span><strong>4</strong><a>Ver operación</a></article>
+    </div>
+  </section>
+  <section class="operator-dashboard-section operator-dashboard-section--support" aria-labelledby="operational-pending-title">
+    <div class="operator-section-heading"><div><p class="operator-eyebrow">Pendientes operativos</p><h2 id="operational-pending-title">Validaciones y control de caja</h2></div></div>
+    <div class="operator-metrics operator-metrics--support">
+      <article><span>Pagos y soportes por validar</span><strong>3</strong><a>Gestionar pagos</a></article>
+      <article><span>Total operativo de caja</span><strong>$1.840.000</strong><p>Calculado con la base diaria y los movimientos registrados hoy.</p><a>Consultar caja</a></article>
+    </div>
+  </section>
+  <section class="operator-panel">
+    <div class="operator-panel-head"><div><p class="operator-eyebrow">Flujos principales</p><h2>¿Qué necesitas gestionar?</h2></div></div>
+    <div class="operator-action-grid">
+      <a routerLink="/operator/reservations"><strong>Reservas y clientes</strong><span>Registra y consulta reservas. Modifica cuando las condiciones parametrizadas del servicio lo permitan antes de la ejecución.</span></a>
+      <a routerLink="/operator/discounts"><strong>Descuentos y condiciones</strong><span>Parametriza vigencias, prioridades, topes y condiciones comerciales.</span></a>
+      <a><strong>Pagos y devoluciones</strong><span>Valida pagos y soportes, consulta saldos y autoriza devoluciones.</span></a>
+      <a><strong>Ejecución y costos</strong><span>Registra servicios prestados y no prestados, novedades y costos operacionales.</span></a>
+    </div>
+  </section>
+} @else {
+  <section class="operator-hero"><div><p class="operator-eyebrow">Vista diaria</p><h2>Seguimiento comercial y operativo en un solo lugar.</h2></div><p>Consulta la información de tu operador: reservas, catálogo, pagos, caja y ejecución.</p></section>
+  <section class="operator-dashboard-section" aria-labelledby="daily-overview-title">
+    <div class="operator-section-heading"><div><p class="operator-eyebrow">Resumen diario</p><h2 id="daily-overview-title">Seguimiento de reservas y ejecución</h2></div><p>Indicadores obligatorios para priorizar la operación del día.</p></div>
+    <div class="operator-metrics operator-metrics--daily" aria-label="Indicadores diarios">
+      <article><span>Reservas creadas hoy</span><strong>{{ dashboard().createdToday }}</strong><a routerLink="/operator/reservations">Ver reservas</a></article>
+      <article><span>Reservas pendientes de pago</span><strong>{{ dashboard().pendingPayment }}</strong><a routerLink="/operator/reservations">Revisar reservas</a></article>
+      <article><span>Reservas confirmadas</span><strong>{{ dashboard().confirmed }}</strong><a routerLink="/operator/reservations">Ver confirmadas</a></article>
+      <article><span>Reservas canceladas</span><strong>{{ dashboard().cancelled }}</strong><a routerLink="/operator/reservations">Ver cancelaciones</a></article>
+      <article><span>Tours o servicios próximos a ejecutar</span><strong>{{ dashboard().upcomingExecutions }}</strong><a routerLink="/operator/operations">Ver operación</a></article>
+    </div>
+  </section>
+  <section class="operator-dashboard-section operator-dashboard-section--support" aria-labelledby="operational-pending-title">
+    <div class="operator-section-heading"><div><p class="operator-eyebrow">Pendientes operativos</p><h2 id="operational-pending-title">Validaciones y control de caja</h2></div></div>
+    <div class="operator-metrics operator-metrics--support">
+      <article><span>{{ pagosLabel() }}</span><strong>{{ pendingSupportCount() }}</strong><a routerLink="/operator/payments">Gestionar pagos</a></article>
+      <article><span>Total operativo de caja</span><strong>{{ cajaTotalLabel() }}</strong><p>Calculado con la base diaria y los movimientos registrados hoy.</p><a routerLink="/operator/cash">Consultar caja</a></article>
+    </div>
+  </section>
+}

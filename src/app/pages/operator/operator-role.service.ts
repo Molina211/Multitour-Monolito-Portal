@@ -7,12 +7,12 @@ import { Injectable, signal } from '@angular/core';
 export type OperatorRole = 'admin' | 'colaborador';
 
 const OPERATOR_ROLE_KEY = 'multitour-operator-role';
-
-// Restriccion base (PDR linea 114/554): el Colaborador operativo solo puede validar o
-// rechazar soportes de transferencia cuando el tenant lo habilite expresamente para ese
-// rol. Ningun tenant lo ha habilitado en este entorno local (no existe parametrizacion de
-// tenant real todavia): por defecto queda deshabilitado, no se inventa una habilitacion.
-export const OPERATOR_COLLABORATOR_CAN_VALIDATE_SUPPORT = false;
+// BUG corregido: antes era una constante fija (siempre false), sin ninguna forma de que el
+// Administrador la habilitara. Restriccion base (PDR linea 114/554): el Colaborador
+// operativo solo puede validar o rechazar soportes de transferencia cuando el tenant lo
+// habilite expresamente para ese rol; por defecto sigue deshabilitado, pero ahora es un
+// parametro real que el Administrador puede activar (Colaboradores).
+const COLLABORATOR_CAN_VALIDATE_SUPPORT_KEY = 'multitour-collaborator-can-validate-support';
 
 function readStoredRole(): OperatorRole {
   try {
@@ -23,10 +23,30 @@ function readStoredRole(): OperatorRole {
   }
 }
 
+function readCollaboratorCanValidateSupport(): boolean {
+  try {
+    return localStorage.getItem(COLLABORATOR_CAN_VALIDATE_SUPPORT_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class OperatorRoleService {
   private readonly roleSignal = signal<OperatorRole>(readStoredRole());
   readonly role = this.roleSignal.asReadonly();
+
+  private readonly collaboratorCanValidateSupportSignal = signal<boolean>(readCollaboratorCanValidateSupport());
+  readonly collaboratorCanValidateSupport = this.collaboratorCanValidateSupportSignal.asReadonly();
+
+  setCollaboratorCanValidateSupport(value: boolean): void {
+    this.collaboratorCanValidateSupportSignal.set(value);
+    try {
+      localStorage.setItem(COLLABORATOR_CAN_VALIDATE_SUPPORT_KEY, String(value));
+    } catch {
+      /* Entorno sin localStorage disponible: el valor sigue vigente en memoria para esta sesion. */
+    }
+  }
 
   isAdmin(): boolean {
     return this.roleSignal() === 'admin';

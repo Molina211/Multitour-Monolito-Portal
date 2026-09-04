@@ -26,7 +26,7 @@
               @if (canExecute(reservation)) {
                 <a [routerLink]="['/operator/operations/register-execution']" [queryParams]="{ reservation: reservation.code }">Registrar ejecución</a>
               } @else {
-                <a routerLink="/operator/payments">Ver pagos</a>
+                <a [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: reservation.code }">Ver pagos</a>
               }
             </td>
           </tr>
@@ -48,22 +48,32 @@
   } @else {
     <div class="operator-table-wrap">
       <table class="operator-table">
-        <thead><tr><th>Fecha</th><th>Servicio</th><th>Reservado</th><th>Ejecutado</th><th>Causal</th><th>Estado</th><th>Acción</th></tr></thead>
+        <thead><tr><th>Reserva</th><th>Fecha</th><th>Servicio</th><th>Reservado</th><th>Ejecutado</th><th>Causal</th><th>Estado</th><th>Responsable</th><th>Acción</th></tr></thead>
         <tbody>
           @for (item of registered(); track item.reservation.code) {
             <tr>
+              <td>#{{ item.reservation.code }}</td>
               <td>{{ item.reservation.date }}</td>
               <td><strong>{{ item.reservation.service }}</strong></td>
               <td>{{ item.execution.reserved }} viajeros</td>
               <td>{{ executedLabel(item.execution) }}</td>
               <td>{{ item.execution.causal || '—' }}</td>
               <td><span class="operator-status" [class]="item.reservation.statusClass">{{ item.reservation.status }}</span></td>
-              <td><a [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: item.reservation.code }">Ver detalle</a></td>
+              <td>{{ item.execution.registeredBy || '—' }}</td>
+              <td>
+                <a [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: item.reservation.code }">Ver detalle</a>
+                @if (canFinalize(item.execution)) {
+                  · <button class="operator-row-toggle" type="button" (click)="finalize(item.reservation.code)">Finalizar ejecución</button>
+                }
+              </td>
             </tr>
           }
         </tbody>
       </table>
     </div>
+    @if (finalizeFeedback()) {
+      <p class="operator-form-feedback is-valid">{{ finalizeFeedback() }}</p>
+    }
   }
 </section>
 

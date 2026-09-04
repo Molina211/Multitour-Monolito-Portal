@@ -143,9 +143,14 @@ export class CashComponent {
   // movimientos; nunca borra informacion.
   closeDay(): void {
     if (this.closed()) return;
-    this.cashService.closeDay(this.currentActor);
-    this.movementFeedback.set('Caja cerrada correctamente. El cierre e histórico quedaron conservados.');
-    this.movementFeedbackValid.set(true);
+    const { duplicate } = this.cashService.closeDay(this.currentActor);
+    if (duplicate) {
+      this.movementFeedback.set('Ya existe un cierre registrado para esta fecha. Usa Historial de caja para registrar una corrección.');
+      this.movementFeedbackValid.set(false);
+    } else {
+      this.movementFeedback.set('Caja cerrada correctamente. El cierre e histórico quedaron conservados.');
+      this.movementFeedbackValid.set(true);
+    }
     this.refresh.update((n) => n + 1);
   }
 }

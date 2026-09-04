@@ -8,28 +8,32 @@
     <p class="operator-eyebrow">Seguimiento de pago</p><h2>Contacto y estado del pago pendiente</h2>
     <div class="operator-form-grid">
       <label>Reserva<input readonly type="text" [value]="code ? '#' + code : ''" /></label>
-      <label>Cliente<input readonly type="text" [value]="record?.customer || ''" /></label>
-      <label>Modalidad de pago<input readonly type="text" [value]="record?.method || ''" /></label>
-      <label>Valor recibido<input readonly type="text" [value]="record?.amount || ''" /></label>
+      <label>Cliente<input readonly type="text" [value]="reservation?.customer || record?.customer || ''" /></label>
+      <label>Modalidad de pago<input readonly type="text" [value]="reservation?.method || record?.method || ''" /></label>
+      <label>Total recibido<input readonly type="text" [value]="reservation?.paid || ''" /></label>
       <label>Saldo pendiente<input readonly type="text" [value]="reservation?.balance || ''" /></label>
-      <label>Estado actual<input readonly type="text" [value]="record?.status || ''" /></label>
-      <label class="operator-form-wide">Plazo/límite vigente<input readonly type="text" [value]="deadlineNote" /></label>
-      <label class="operator-form-wide">
-        Nota de seguimiento (obligatoria)
-        <textarea
-          required
-          placeholder="Describe el contacto realizado con el cliente y el resultado"
-          [disabled]="notFound"
-          [value]="note()"
-          (input)="note.set($any($event.target).value)"
-        ></textarea>
-      </label>
+      <label>Estado actual<input readonly type="text" [value]="reservation?.payment || record?.status || ''" /></label>
+      @if (!isSettled) {
+        <label class="operator-form-wide">Plazo/límite vigente<input readonly type="text" [value]="deadlineNote" /></label>
+        <label class="operator-form-wide">
+          Nota de seguimiento (obligatoria)
+          <textarea
+            required
+            placeholder="Describe el contacto realizado con el cliente y el resultado"
+            [disabled]="notFound"
+            [value]="note()"
+            (input)="note.set($any($event.target).value)"
+          ></textarea>
+        </label>
+      }
     </div>
   </section>
   <p class="operator-form-feedback" [class.is-valid]="feedbackIsValid()">{{ feedback() }}</p>
   <div class="operator-form-actions">
     <a class="operator-outline" routerLink="/operator/payments">Volver a pagos</a>
-    <button class="operator-primary" type="submit" [disabled]="notFound">Registrar seguimiento</button>
+    @if (!isSettled) {
+      <button class="operator-primary" type="submit" [disabled]="notFound">Registrar seguimiento</button>
+    }
   </div>
 </form>
 

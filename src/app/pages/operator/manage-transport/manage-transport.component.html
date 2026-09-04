@@ -1,0 +1,33 @@
+<header class="operator-topbar operator-topbar--catalog-management"><div><p class="operator-eyebrow">Catálogos</p><h1>Gestionar transporte</h1></div><a class="operator-outline" routerLink="/operator/catalog">Volver a catálogos</a></header>
+<section class="operator-panel" data-managed-tour-catalog id="transporte-catalog-panel">
+  <p class="operator-eyebrow">Transporte</p><h2>Rutas, costos y capacidad</h2>
+  <div class="operator-table-wrap">
+    <table class="operator-table">
+      <thead><tr><th>Recurso</th><th>Trayecto</th><th>Capacidad</th><th>Tarifa base</th><th>Costo base</th><th>Política de cupo</th><th>Vigencia</th><th>Estado</th><th>Acción</th></tr></thead>
+      <tbody>
+        @for (record of records; track record.key) {
+          <tr>
+            <td>{{ record.fields['name'] }}</td>
+            <td>{{ record.fields['route'] || 'Por configurar' }}</td>
+            <td>{{ record.fields['capacity'] && record.fields['capacity'] !== 'Por configurar' ? record.fields['capacity'] + ' viajeros' : 'Por configurar' }}</td>
+            <td>{{ record.fields['tariff'] }}</td>
+            <td>{{ record.fields['cost'] }}</td>
+            <td>{{ record.fields['policy'] }}</td>
+            <td>{{ record.fields['validity'] }}</td>
+            <td><span class="operator-status" [class.is-confirmed]="isActive(record.key, record.active)" [class.is-cancelled]="!isActive(record.key, record.active)">{{ isActive(record.key, record.active) ? 'Activo' : 'Inactivo' }}</span></td>
+            <td>
+              @if (roleService.isAdmin()) {
+                @if (record.key === 'Transporte programado') {
+                  <a class="operator-row-manage" routerLink="/operator/catalog/transport/configure">Gestionar</a>
+                } @else {
+                  <a class="operator-row-manage">Gestionar</a>
+                }
+                <button class="operator-row-toggle" type="button" (click)="toggle(record.key, isActive(record.key, record.active))">{{ isActive(record.key, record.active) ? 'Desactivar' : 'Activar' }}</button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

@@ -23,6 +23,12 @@
         <div><span>Correo</span><strong>{{ reservation.email }}</strong></div>
         <div><span>Viajeros registrados</span><strong>{{ reservation.travelers }} personas</strong></div>
         <div><span>Acompañantes</span><strong>{{ reservation.companions }}</strong></div>
+        @if (reservation.holderDocument) {
+          <div><span>Documento del titular</span><strong>{{ reservation.holderDocument }}</strong></div>
+        }
+        @if (reservation.transportSelected) {
+          <div><span>Transporte asociado</span><strong>{{ reservation.transportSelected }}</strong></div>
+        }
       </div>
     </section>
     <section class="operator-panel">
@@ -32,7 +38,7 @@
         <div><span>Valor proyectado</span><strong>{{ reservation.projected }}</strong></div>
         <div><span>Descuentos aplicados</span><strong>{{ reservation.discount }}</strong></div>
         <div><span>Valor final</span><strong>{{ reservation.final }}</strong></div>
-        <div><span>Pagado o validado</span><strong>{{ reservation.paid }}</strong></div>
+        <div><span>Total recibido</span><strong>{{ reservation.paid }}</strong></div>
       </div>
     </section>
   </div>
@@ -75,6 +81,22 @@
     </section>
   }
 
+  @if (reservation.companionRecords?.length) {
+    <section class="operator-panel">
+      <p class="operator-eyebrow">Datos individuales</p><h2>Acompañantes registrados</h2>
+      <div class="operator-table-wrap">
+        <table class="operator-table">
+          <thead><tr><th>#</th><th>Nombre completo</th><th>Documento</th><th>Fecha de nacimiento</th></tr></thead>
+          <tbody>
+            @for (companion of reservation.companionRecords; track $index) {
+              <tr><td>{{ $index + 1 }}</td><td>{{ companion.name || '—' }}</td><td>{{ companion.document || '—' }}</td><td>{{ companion.birthDate || '—' }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
   <section class="operator-panel">
     <div class="operator-panel-head"><div><p class="operator-eyebrow">Servicios reservados</p><h2>Proyección comercial</h2></div></div>
     <div class="operator-table-wrap">
@@ -88,7 +110,11 @@
   <section class="operator-panel">
     <div class="operator-panel-head">
       <div><p class="operator-eyebrow">Pagos y soportes</p><h2>Seguimiento económico</h2></div>
-      <a class="operator-primary" [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: code }">Gestionar pago</a>
+      @if (isSettled) {
+        <a class="operator-outline" [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: code }">Ver pagos</a>
+      } @else {
+        <a class="operator-primary" [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: code }">Gestionar pago</a>
+      }
     </div>
     <div class="operator-table-wrap">
       <table class="operator-table">

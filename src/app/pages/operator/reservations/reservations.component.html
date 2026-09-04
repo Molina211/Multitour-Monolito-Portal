@@ -56,8 +56,8 @@
                   <a [routerLink]="['/operator/reservations/apply-discount']" [queryParams]="{ reservation: reservation.code }">Aplicar descuento</a>
                 } @else {
                   <a [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: reservation.code }">Ver detalle</a>
-                  @if (reservation.action === 'Gestionar pago') {
-                    · <a [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: reservation.code }">Gestionar pago</a>
+                  @if (reservation.action === 'Gestionar pago' || reservation.action === 'Ver pago') {
+                    · <a [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: reservation.code }">{{ reservation.action }}</a>
                   } @else if (reservation.action === 'Ver operación') {
                     · <a routerLink="/operator/operations">Ver operación</a>
                   } @else if (reservation.action) {

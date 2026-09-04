@@ -61,6 +61,7 @@ export interface CashClosure {
 
 const CASH_DAY_KEY = 'multitour-cash-day';
 const CASH_CLOSURES_KEY = 'multitour-cash-closures';
+const TENANT_TIMEZONE = 'America/Bogota';
 
 function parseCOP(value: string | undefined): number {
   return Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
@@ -83,8 +84,20 @@ function readStorage<T>(key: string, fallback: T): T {
   }
 }
 
+// La jornada de caja, su cierre, historial y consolidacion deben usar SIEMPRE la fecha/hora
+// local del tenant (America/Bogota), nunca UTC ni la zona horaria de quien consulta: de lo
+// contrario el cambio de dia por huso horario desfasa la fecha de jornada respecto a la
+// fecha/hora de cierre mostrada (ej. encabezado "2026-09-03" vs "Sep 2, 2026").
+function getTenantDateKey(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TENANT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
+export function formatTenantDateTime(isoDate: string): string {
+  return new Date(isoDate).toLocaleString('es-CO', { timeZone: TENANT_TIMEZONE });
+}
+
 function getCashTodayKey(): string {
-  return new Date().toISOString().slice(0, 10);
+  return getTenantDateKey();
 }
 
 // Mismos 2 movimientos ya aprobados en la landing (admin-caja.html): base $300.000, un
@@ -137,9 +150,29 @@ export class OperatorCashService {
   // ya quedo conservada integramente en el historial de cierres.
   getDay(): CashDay {
     const stored = readStorage<CashDay | null>(CASH_DAY_KEY, null);
+    const today = getCashTodayKey();
+
+    // Fuente unica de verdad: la jornada de HOY solo esta cerrada si ya existe un cierre
+    // real para la fecha local de hoy en getClosures() (ya normalizada por closedAt). No se
+    // confia en el "date"/"status" guardado aparte en la jornada en curso, que pudo quedar
+    // desactualizado por el mismo bug de huso horario ya corregido en los cierres (eso
+    // provocaba que, al cambiar de dia, la pantalla siguiera mostrando cerrada la jornada
+    // del dia anterior en lugar de abrir una jornada nueva para hoy).
+    const todaysClosure = this.getClosures().find((closure) => closure.date === today);
+    if (todaysClosure) {
+      // Las devoluciones del cierre se recalculan siempre en vivo con
+      // getExecutedRefundMovements(); se excluyen aqui para no duplicarlas.
+      const movements = todaysClosure.movements.filter((movement) => movement.type !== 'Devolución');
+      return { date: today, status: 'cerrada', base: todaysClosure.base, movements };
+    }
+
     if (!stored) return getDefaultCashDay();
-    if (stored.status === 'cerrada') {
-      return { date: getCashTodayKey(), status: 'abierta', base: stored.base, movements: [] };
+    // Regla: debe existir un unico cierre ordinario por tenant y fecha. Sin un cierre real
+    // para hoy, la jornada de hoy esta abierta. Si lo almacenado pertenece a un dia
+    // distinto o quedo marcado "cerrada" por un cierre de un dia anterior, se inicializa una
+    // jornada NUEVA para hoy, heredando la base -no el total de cierre- segun PDR linea 769.
+    if (stored.date !== today || stored.status === 'cerrada') {
+      return { date: today, status: 'abierta', base: stored.base, movements: [] };
     }
     return stored;
   }
@@ -148,8 +181,37 @@ export class OperatorCashService {
     localStorage.setItem(CASH_DAY_KEY, JSON.stringify(day));
   }
 
+  // Debe existir un unico cierre ordinario por tenant y fecha, y la fecha del encabezado
+  // ("Cierre 2026-09-03") debe corresponder SIEMPRE a la misma fecha/hora local del tenant
+  // (America/Bogota) que se muestra en el detalle del cierre. Esta es la UNICA fuente de
+  // lectura de cierres (Historial, Consolidacion mensual y el propio cierre la consultan):
+  // se corrige la fuente aqui mismo (no solo se filtra en pantalla), en dos pasos:
+  // 1) el "date" de cada cierre se recalcula SIEMPRE a partir de su propio "closedAt" (el
+  //    instante real, sin ambiguedad de huso horario) convertido a fecha local del tenant,
+  //    nunca se confia en un "date" que pudo quedar mal calculado por un bug ya corregido;
+  // 2) si tras normalizar la fecha llegaran a coincidir dos cierres, se conserva el
+  //    ORDINARIO original (el primero) y se fusiona en el cualquier correccion que hubiera
+  //    quedado registrada sobre el duplicado, sin perder trazabilidad ni reemplazar el
+  //    responsable historico valido de cada correccion.
   getClosures(): CashClosure[] {
-    return readStorage<CashClosure[]>(CASH_CLOSURES_KEY, []);
+    const stored = readStorage<CashClosure[]>(CASH_CLOSURES_KEY, []);
+    const byDate = new Map<string, CashClosure>();
+    let changed = false;
+    stored.forEach((closure) => {
+      const tenantDate = closure.closedAt ? getTenantDateKey(new Date(closure.closedAt)) : closure.date;
+      if (tenantDate !== closure.date) changed = true;
+      const normalized = tenantDate === closure.date ? closure : { ...closure, date: tenantDate };
+      const existing = byDate.get(tenantDate);
+      if (!existing) {
+        byDate.set(tenantDate, { ...normalized, corrections: [...(normalized.corrections || [])] });
+        return;
+      }
+      changed = true;
+      existing.corrections = [...(existing.corrections || []), ...(normalized.corrections || [])];
+    });
+    const deduped = Array.from(byDate.values());
+    if (changed) this.saveClosures(deduped);
+    return deduped;
   }
 
   private saveClosures(closures: CashClosure[]): void {
@@ -212,14 +274,23 @@ export class OperatorCashService {
 
   // Cerrar caja conserva el cierre y el historico de movimientos; nunca borra
   // informacion. El dia queda cerrado hasta una correccion posterior autorizada.
-  closeDay(actor: string): CashDay {
+  // Regla 1: debe existir un unico cierre ordinario por tenant y fecha. Si ya existe un
+  // cierre normal para esta fecha, no se crea otro duplicado: cualquier ajuste posterior se
+  // registra como correccion del mismo cierre desde Historial de caja (regla 8).
+  closeDay(actor: string): { day: CashDay; duplicate: boolean } {
     const day = this.getDay();
-    if (day.status === 'cerrada') return day;
-    const { ingresos, pagosOperacionales, gastos, devoluciones, total, refundMovements } = this.computeTotals(day);
+    if (day.status === 'cerrada') return { day, duplicate: false };
+    const dayDate = day.date || getCashTodayKey();
     const closures = this.getClosures();
+    if (closures.some((closure) => closure.date === dayDate)) {
+      day.status = 'cerrada';
+      this.saveDay(day);
+      return { day, duplicate: true };
+    }
+    const { ingresos, pagosOperacionales, gastos, devoluciones, total, refundMovements } = this.computeTotals(day);
     closures.push({
       id: `cierre-${Date.now()}`,
-      date: day.date || getCashTodayKey(),
+      date: dayDate,
       base: day.base,
       ingresos,
       pagosOperacionales,
@@ -234,7 +305,7 @@ export class OperatorCashService {
     this.saveClosures(closures);
     day.status = 'cerrada';
     this.saveDay(day);
-    return day;
+    return { day, duplicate: false };
   }
 
   // Toda correccion posterior al cierre queda restringida al Administrador del operador,
@@ -258,6 +329,9 @@ export class OperatorCashService {
   // Consolidación mensual y Reportes, para que ambas pantallas muestren siempre los
   // mismos valores derivados de Caja, Reservas y Operación/Costos.
   getMonthlyConsolidation(): MonthlyConsolidation[] {
+    // Regla 3: la consolidacion mensual usa unicamente cierres diarios validos, sin
+    // duplicar una misma jornada. getClosures() ya garantiza un unico cierre ordinario por
+    // fecha (fuente unica, corregida de raiz), asi que aqui no se vuelve a deduplicar aparte.
     const closures = this.getClosures();
     if (!closures.length) return [];
 

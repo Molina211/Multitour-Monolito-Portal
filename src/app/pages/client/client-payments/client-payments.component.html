@@ -1,0 +1,38 @@
+<main class="travel-dashboard-shell">
+  <header class="travel-dashboard-header">
+    <a class="travel-dashboard-brand" routerLink="/">{{ tenantName() }}</a>
+    <div class="travel-dashboard-header-actions">
+      <a class="travel-dashboard-header-link" routerLink="/client">Volver al panel</a>
+    </div>
+  </header>
+
+  <section class="travel-dashboard-hero">
+    <div class="travel-dashboard-copy">
+      <p class="travel-dashboard-eyebrow">Portal cliente</p>
+      <h1>Mis pagos</h1>
+      <p>Consulta pagos, abonos, saldos y soportes de tus reservas propias. Esta consulta no permite validar ni rechazar soportes.</p>
+    </div>
+  </section>
+
+  <section class="travel-dashboard-section">
+    <div class="travel-dashboard-section-head"><h2>Estado económico de mis reservas</h2></div>
+    <div class="travel-dashboard-reservation-grid">
+      @for (payment of payments(); track payment.code) {
+        <article class="travel-dashboard-reservation-card">
+          <div class="travel-dashboard-reservation-main">
+            <div class="travel-dashboard-reservation-copy">
+              <strong>{{ payment.experience }}</strong>
+              <small>Reserva: {{ payment.code }}</small>
+            </div>
+            <div class="travel-dashboard-reservation-status">
+              <span class="travel-dashboard-status-badge">{{ payment.status }}</span>
+              <div class="travel-dashboard-reservation-values"><strong>{{ payment.budget || payment.finalValue }}</strong></div>
+            </div>
+          </div>
+        </article>
+      } @empty {
+        <p class="travel-dashboard-copy">Todavía no tienes pagos ni reservas registradas.</p>
+      }
+    </div>
+  </section>
+</main>

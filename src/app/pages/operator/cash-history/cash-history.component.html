@@ -24,7 +24,7 @@
       <div><span>Gastos</span><strong>{{ formatAmount(closure.gastos) }}</strong></div>
       <div><span>Devoluciones</span><strong>{{ formatAmount(closure.devoluciones) }}</strong></div>
       <div><span>Cerrado por</span><strong>{{ closure.closedBy }}</strong></div>
-      <div><span>Fecha y hora de cierre</span><strong>{{ closure.closedAt | date: 'medium' }}</strong></div>
+      <div><span>Fecha y hora de cierre</span><strong>{{ formatDateTime(closure.closedAt) }}</strong></div>
     </div>
     <p class="operator-eyebrow">Correcciones posteriores</p>
     @if (closure.corrections.length) {
@@ -34,7 +34,7 @@
           <tbody>
             @for (correction of closure.corrections; track $index) {
               <tr>
-                <td>{{ correction.appliedAt | date: 'medium' }}</td>
+                <td>{{ formatDateTime(correction.appliedAt) }}</td>
                 <td>{{ correction.appliedBy }}</td>
                 <td>{{ correction.justification }}</td>
               </tr>

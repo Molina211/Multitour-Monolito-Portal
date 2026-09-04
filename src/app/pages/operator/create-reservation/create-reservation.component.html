@@ -29,15 +29,9 @@
           }
         </select>
       </label>
-      <label>Salida disponible
-        <select required [disabled]="!selectedService()" [value]="departure()" (change)="departure.set($any($event.target).value)">
-          <option value="">
-            {{ !selectedService() ? 'Selecciona primero un servicio' : (selectedService()?.departures?.length ? 'Selecciona una salida' : 'Este servicio no tiene salidas configuradas') }}
-          </option>
-          @for (date of selectedService()?.departures ?? []; track date) {
-            <option [value]="date">{{ date }}</option>
-          }
-        </select>
+      <label>Fecha del servicio
+        <input required type="date" [disabled]="!selectedService()" [value]="departure()" [attr.min]="selectedService()?.start" [attr.max]="selectedService()?.end" (change)="departure.set($any($event.target).value)" />
+        <small>{{ departureHint() }}</small>
       </label>
       <label>Cantidad total de viajeros<input required type="number" min="1" [value]="travelers()" (input)="onTravelersChange($any($event.target).value)" /></label>
       <label>Hospedaje, si aplica
@@ -46,19 +40,49 @@
           <option value="mirador">Ecohotel Mirador</option>
         </select>
       </label>
+      @if (!serviceIncludesTransport()) {
+        <label>Transporte, si aplica
+          <select [value]="transport()" (change)="transport.set($any($event.target).value)">
+            <option value="none">No aplica</option>
+            @for (option of transportOptions(); track option.key) {
+              <option [value]="option.key">{{ option.name }} — {{ option.route }}</option>
+            }
+          </select>
+        </label>
+      }
     </div>
     @if (showCapacityMessage()) {
       <p class="operator-capacity-message" [class.is-error]="!hasLodgingCapacity()">
         {{ hasLodgingCapacity() ? 'Hospedaje con capacidad para hasta ' + selectedService()?.lodgingCapacity + ' viajeros.' : 'Capacidad insuficiente: este hospedaje admite hasta ' + selectedService()?.lodgingCapacity + ' viajeros.' }}
       </p>
     }
-    @if (selectedService(); as service) {
-      <div class="operator-inclusions">
-        <strong>Servicios relacionados incluidos</strong>
-        @for (item of service.inclusions; track item) {
-          <span>{{ item }}</span>
-        }
+    @if (serviceIncludesTransport()) {
+      <p class="operator-capacity-message">Este Tour tiene transporte asociado. No se ofrece un transporte adicional por separado ni se cobra aparte.</p>
+    }
+    @if (selectedTransport(); as transportOption) {
+      <div class="operator-detail-list">
+        <div><span>Transporte</span><strong>{{ transportOption.name }}</strong></div>
+        <div><span>Trayecto</span><strong>{{ transportOption.route }}</strong></div>
+        <div><span>Tarifa por persona</span><strong>{{ transportOption.price > 0 ? ('$' + transportOption.price.toLocaleString('es-CO')) : 'Por configurar' }}</strong></div>
+        <div><span>Capacidad</span><strong>{{ transportHasKnownCapacity() ? transportOption.capacity + ' viajeros' : 'Por configurar' }}</strong></div>
       </div>
+      <p class="operator-capacity-message" [class.is-error]="transportOverCapacity()">
+        @if (transportOverCapacity()) {
+          Capacidad insuficiente: este transporte admite hasta {{ transportOption.capacity }} viajeros.
+        } @else {
+          Tarifa por persona incluida en el valor proyectado.
+        }
+      </p>
+    }
+    @if (selectedService(); as service) {
+      @if (service.inclusions.length > 0) {
+        <div class="operator-inclusions">
+          <strong>Servicios relacionados incluidos</strong>
+          @for (item of service.inclusions; track item) {
+            <span>{{ item }}</span>
+          }
+        </div>
+      }
     }
   </section>
 
@@ -70,9 +94,9 @@
         <article class="operator-companion-card">
           <strong>Acompañante {{ index + 1 }}</strong>
           <div class="operator-form-grid">
-            <label>Nombre completo<input required type="text" placeholder="Nombre completo" /></label>
+            <label>Nombre completo<input required type="text" placeholder="Nombre completo" (input)="setCompanionName(index, $any($event.target).value)" /></label>
             <label>Documento de identidad<input required type="text" placeholder="Documento" (input)="setCompanionDocument(index, $any($event.target).value)" /></label>
-            <label>Fecha de nacimiento<input required type="date" /></label>
+            <label>Fecha de nacimiento<input required type="date" (input)="setCompanionBirthDate(index, $any($event.target).value)" /></label>
           </div>
         </article>
       }

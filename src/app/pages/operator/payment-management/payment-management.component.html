@@ -2,6 +2,10 @@
   <div><p class="operator-eyebrow">Seguimiento de reserva</p><h1>Gestión de pago</h1></div>
 </header>
 
+@if (notFound) {
+  <p class="operator-form-feedback">No se encontró la reserva seleccionada. Vuelve a Reservas u Operación e ingresa nuevamente por Gestionar pago.</p>
+} @else {
+
 <section class="operator-detail-hero">
   <div><p class="operator-eyebrow">Reserva</p><h2>#{{ reservation().code }}</h2></div>
   <span class="operator-status" [class]="reservation().statusClass">{{ reservation().status }}</span>
@@ -63,11 +67,18 @@
     </form>
   } @else {
     <div class="operator-payment-completed">
-      <p>No existen valores pendientes por registrar para esta reserva.</p>
-      <div><span>Monto recibido</span><strong>{{ reservation().paid }}</strong></div>
+      <p>{{ completedNote() }}</p>
+      <div><span>Total recibido</span><strong>{{ reservation().paid }}</strong></div>
+      @if (hasMultipleMovements()) {
+        <div class="operator-detail-list">
+          @for (movement of paymentMovements(); track $index) {
+            <div><span>Abono {{ $index + 1 }}</span><strong>{{ movement.amount }}</strong></div>
+          }
+        </div>
+      }
     </div>
     <div class="operator-form-actions operator-payment-actions">
-      <a class="operator-outline">Volver a la reserva</a>
+      <a class="operator-outline" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: reservation().code }">Volver a la reserva</a>
     </div>
   }
 
@@ -78,3 +89,4 @@
     </div>
   }
 </section>
+}

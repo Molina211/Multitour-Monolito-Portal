@@ -1,4 +1,4 @@
-<header class="operator-topbar"><div><p class="operator-eyebrow">Configuración operativa</p><h1>Catálogos</h1></div>@if (roleService.isAdmin()) {<button class="operator-primary" type="button" routerLink="/operator/catalog/new-service">Nuevo servicio</button>}</header>
+<header class="operator-topbar"><div><p class="operator-eyebrow">{{ roleService.isAdmin() ? 'Configuración operativa' : 'Consulta operativa' }}</p><h1>Catálogos</h1></div>@if (roleService.isAdmin()) {<button class="operator-primary" type="button" routerLink="/operator/catalog/new-service">Nuevo servicio</button>}</header>
 <section class="operator-hero operator-hero-compact"><div><p class="operator-eyebrow">Oferta del operador</p><h2>Servicios listos para reservar.</h2></div>
   @if (roleService.isAdmin()) {
     <p>Administra atractivos, alimentación, hospedaje, transporte, tarifas base, costos base y capacidad.</p>
@@ -11,7 +11,7 @@
   <article><span>TOURS Y ATRACTIVOS</span><strong>{{ toursActiveCount() }} activos</strong><p>Rutas, salidas, tarifas y políticas de cupo.</p>@if (roleService.isAdmin()) {<button type="button" routerLink="/operator/catalog/tours">Gestionar catálogo</button>}</article>
   <article><span>HOSPEDAJE</span><strong>{{ lodgingActiveCount() }} activo{{ lodgingActiveCount() === 1 ? '' : 's' }}</strong><p>Capacidad, zonas y tarifas disponibles.</p>@if (roleService.isAdmin()) {<button type="button" routerLink="/operator/catalog/lodging">Gestionar hospedaje</button>}</article>
   <article><span>ALIMENTACIÓN</span><strong>{{ foodActiveCount() }} activo{{ foodActiveCount() === 1 ? '' : 's' }}</strong><p>Platos del día y opciones para reservas.</p>@if (roleService.isAdmin()) {<button type="button" routerLink="/operator/catalog/food">Gestionar alimentación</button>}</article>
-  <article><span>TRANSPORTE</span><strong>1 activo</strong><p>Rutas, costos y capacidad controlada.</p>@if (roleService.isAdmin()) {<button type="button">Gestionar transporte</button>}</article>
+  <article><span>TRANSPORTE</span><strong>{{ transportActiveCount() }} activo{{ transportActiveCount() === 1 ? '' : 's' }}</strong><p>Rutas, costos y capacidad controlada.</p>@if (roleService.isAdmin()) {<button type="button" routerLink="/operator/catalog/transport">Gestionar transporte</button>}</article>
 </section>
 
 <section class="operator-panel">

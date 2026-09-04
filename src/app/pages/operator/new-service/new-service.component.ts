@@ -10,15 +10,6 @@ const ESTABLISHMENT_IMAGE_LABELS: Record<EstablishmentType, string> = {
   restaurant: 'Imagen del restaurante',
 };
 
-// Mismo formato ya usado en toda la app (es. "03 sep 2026").
-const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-function formatDate(isoDate: string): string {
-  const [year, month, day] = (isoDate || '').split('-');
-  const monthName = MONTH_ABBR[Number(month) - 1];
-  if (!year || !day || !monthName) return '';
-  return `${day} ${monthName} ${year}`;
-}
-
 @Component({
   selector: 'app-operator-new-service',
   standalone: true,
@@ -31,51 +22,65 @@ export class NewServiceComponent {
   private readonly router = inject(Router);
 
   kind = signal<ServiceKind>('operational');
-  type = signal('tour');
+  operationalType = signal('tour');
   establishmentType = signal<EstablishmentType>('hotel');
   previewSrc = signal('');
   previewReady = signal(false);
   feedback = signal('Completa la información para publicar el producto en el catálogo del cliente.');
 
+  // Tour <-> Transporte (RN-TRA-001/002): solo aplica cuando el Tipo es "Tour o actividad".
+  includesTransport = signal<'no' | 'si'>('no');
+  selectedTransportKey = signal('');
+  // Capacidad/cupo propia del Tour (campo "capacity" del formulario), solo para mostrarla
+  // junto a la capacidad del Transporte asociado: son independientes, nunca se copia una
+  // sobre la otra.
+  tourCapacityInput = signal('');
+
+  // CONFIGURACIÓN DEL TRANSPORTE: editable directamente aqui. Trayecto/capacidad/costo son
+  // globales del recurso de Transporte (se guardan igual que en Configurar transporte). La
+  // tarifa por persona es especifica de ESTE Tour (RN-TRA-002): se precarga con la tarifa
+  // generica del transporte como punto de partida, pero el Administrador puede darle a
+  // este Tour una tarifa propia sin alterar la de otros tours que usen el mismo transporte.
+  transportRouteInput = signal('');
+  transportTariffInput = signal('');
+  transportCapacityInput = signal('');
+  transportCostInput = signal('');
+
+  // Solo transportes reales, activos y vigentes (OperatorCatalogService), igual que
+  // Gestionar transporte: nunca se hardcodea ni se ofrecen inactivos.
+  activeTransportOptions = computed(() => this.catalogService.getActiveTransportOptions());
+  selectedTransportOption = computed(
+    () => this.activeTransportOptions().find((option) => option.key === this.selectedTransportKey()) || null,
+  );
+
+  onTransportSelected(key: string): void {
+    this.selectedTransportKey.set(key);
+    const option = this.activeTransportOptions().find((o) => o.key === key) || null;
+    this.transportRouteInput.set(option && option.route !== 'Por configurar' ? option.route : '');
+    this.transportTariffInput.set(option && option.price > 0 ? String(option.price) : '');
+    this.transportCapacityInput.set(option && option.capacity != null ? String(option.capacity) : '');
+    this.transportCostInput.set(option && option.cost > 0 ? String(option.cost) : '');
+  }
+
   imageLabel = computed(() =>
     this.kind() === 'establishment' ? ESTABLISHMENT_IMAGE_LABELS[this.establishmentType()] : 'Imagen del servicio',
   );
-
-  // Regla 1/2 (RF-007/linea 452): las salidas son fechas reales de ejecucion, distintas de
-  // la vigencia comercial. Solo aplican a "Tour o actividad", que es el unico tipo que
-  // aparece como "Servicio principal" en Crear reserva; no se inventan horarios ni campos
-  // adicionales, solo la fecha.
-  showDepartures = computed(() => this.kind() === 'operational' && this.type() === 'tour');
-  newDeparture = signal('');
-  departureDates = signal<string[]>([]);
-
-  departureRows = computed(() => this.departureDates().map((iso) => ({ iso, label: formatDate(iso) })));
 
   onKindChange(value: string): void {
     this.kind.set(value === 'establishment' ? 'establishment' : 'operational');
   }
 
-  onTypeChange(value: string): void {
-    this.type.set(value);
+  onOperationalTypeChange(value: string): void {
+    this.operationalType.set(value);
+  }
+
+  onIncludesTransportChange(value: string): void {
+    this.includesTransport.set(value === 'si' ? 'si' : 'no');
+    if (value !== 'si') this.selectedTransportKey.set('');
   }
 
   onEstablishmentTypeChange(value: string): void {
     this.establishmentType.set(value === 'restaurant' ? 'restaurant' : 'hotel');
-  }
-
-  setNewDeparture(value: string): void {
-    this.newDeparture.set(value);
-  }
-
-  addDeparture(): void {
-    const value = this.newDeparture();
-    if (!value || this.departureDates().includes(value)) return;
-    this.departureDates.set([...this.departureDates(), value].sort());
-    this.newDeparture.set('');
-  }
-
-  removeDeparture(iso: string): void {
-    this.departureDates.set(this.departureDates().filter((d) => d !== iso));
   }
 
   onImageChange(event: Event): void {
@@ -117,11 +122,18 @@ export class NewServiceComponent {
       this.feedback.set('Completa los datos, adjunta una imagen y define una vigencia válida.');
       return;
     }
+    const type = String(data.get('type') || '');
+    // RN-TRA-001/002: si el Tour declara transporte incluido, debe seleccionarse un
+    // recurso de transporte real (activo); nunca se guarda una relacion vacia como "si".
+    if (type === 'tour' && this.includesTransport() === 'si' && !this.selectedTransportOption()) {
+      this.feedback.set('Selecciona un transporte activo para asociarlo a este Tour, o marca "No" si no incluye transporte.');
+      return;
+    }
     const id = `resource-${Date.now()}`;
     this.catalogService.addNewService({
       id,
       name: String(data.get('name') || '').trim(),
-      type: String(data.get('type') || ''),
+      type,
       price: Number(data.get('price') || 0),
       capacity: Number(data.get('capacity') || 0) || null,
       restrictions: String(data.get('restrictions') || '').trim(),
@@ -130,12 +142,22 @@ export class NewServiceComponent {
       policy: String(data.get('policy') || ''),
       image: this.previewSrc(),
       active: true,
+      // RN-TRA-001 (trayecto): solo tiene sentido para type === 'transport'; no se inventa
+      // uno para el resto de tipos ni si el campo quedo vacio.
+      route: type === 'transport' ? String(data.get('route') || '').trim() || undefined : undefined,
     });
-    // Regla 2/6: las salidas quedan asociadas al MISMO servicio (su id) y son la unica
-    // fuente que Crear reserva consulta; sin salidas configuradas, no se guarda nada (no se
-    // inventa una salida a partir de la vigencia).
-    if (this.type() === 'tour' && this.departureDates().length) {
-      this.catalogService.setDepartures(id, this.departureDates().map(formatDate));
+    if (type === 'tour' && this.includesTransport() === 'si') {
+      const transportKey = this.selectedTransportKey();
+      // Trayecto/capacidad/costo: configuracion global del recurso de Transporte (mismo
+      // mecanismo que Configurar transporte, reutilizado aqui para no duplicar logica).
+      this.catalogService.updateTransportResourceConfig(transportKey, {
+        route: this.transportRouteInput(),
+        capacity: this.transportCapacityInput() ? Number(this.transportCapacityInput()) : null,
+        cost: this.transportCostInput() ? Number(this.transportCostInput()) : 0,
+      });
+      // Tarifa por persona: especifica de este Tour (RN-TRA-002).
+      const tariffOverride = this.transportTariffInput() ? Number(this.transportTariffInput()) : undefined;
+      this.catalogService.setTourTransport(id, transportKey, tariffOverride);
     }
     this.router.navigateByUrl('/operator/catalog');
   }

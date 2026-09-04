@@ -3,30 +3,31 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CatalogRecordDefault, OPERATOR_CATALOG_DEFAULTS, OperatorCatalogService } from '../operator-catalog.service';
 import { OperatorRoleService } from '../operator-role.service';
 
-const CATALOG_ID = 'alimentacion-catalog-panel';
+const CATALOG_ID = 'transporte-catalog-panel';
 
 function formatCurrency(value: number): string {
   return `$${Math.round(value).toLocaleString('es-CO')}`;
 }
 
 @Component({
-  selector: 'app-operator-manage-food',
+  selector: 'app-operator-manage-transport',
   standalone: true,
   imports: [RouterLink],
-  templateUrl: './manage-food.component.html',
-  styleUrl: './manage-food.component.css',
+  templateUrl: './manage-transport.component.html',
+  styleUrl: './manage-transport.component.css',
 })
-export class ManageFoodComponent {
+export class ManageTransportComponent {
   private readonly catalogService = inject(OperatorCatalogService);
   private readonly route = inject(ActivatedRoute);
   readonly roleService = inject(OperatorRoleService);
 
   // "Ver detalle" del Colaborador operativo reutiliza esta MISMA ruta/componente cuando el
-  // servicio fue creado posteriormente por el Administrador (Nuevo servicio), sin pantalla
-  // nueva. Sin "record" en la URL se mantiene la opcion base ya aprobada.
+  // recurso fue creado posteriormente por el Administrador (Nuevo servicio), sin pantalla
+  // nueva. Sin "record" en la URL se mantiene el recurso base ya aprobado (mismo patron ya
+  // usado en Gestionar hospedaje / Gestionar alimentación).
   private readonly recordKey = this.route.snapshot.queryParamMap.get('record') || '';
   private readonly dynamicResource = this.recordKey
-    ? this.catalogService.newServices().find((resource) => resource.id === this.recordKey && resource.type === 'food')
+    ? this.catalogService.newServices().find((resource) => resource.id === this.recordKey && resource.type === 'transport')
     : undefined;
 
   private dynamicResourceFields(resource: NonNullable<typeof this.dynamicResource>): CatalogRecordDefault {
@@ -34,25 +35,36 @@ export class ManageFoodComponent {
       key: resource.id,
       active: resource.active,
       fields: {
-        dish: resource.name,
+        name: resource.name,
+        route: resource.route?.trim() || 'Por configurar',
+        capacity: resource.capacity != null ? String(resource.capacity) : '',
         tariff: formatCurrency(resource.price),
+        cost: resource.cost && resource.cost > 0 ? formatCurrency(resource.cost) : 'Por configurar',
         validity: `${resource.start} - ${resource.end}`,
         policy: resource.policy,
       },
     };
   }
 
-  // BUG corregido: sin "record" en la URL solo se mostraba la opcion gastronomica base
-  // hardcodeada, ignorando platos/opciones creados despues en Nuevo servicio. Ahora sale de
-  // la MISMA fuente que el contador de "Catálogos" (OperatorCatalogService.activeCount).
+  private defaultRecordFields(): CatalogRecordDefault {
+    const base = OPERATOR_CATALOG_DEFAULTS[CATALOG_ID].records[0];
+    // Refleja lo realmente parametrizado por el Administrador (Configurar transporte),
+    // en vez del valor demo, si ya existe una configuracion guardada.
+    const fields = this.catalogService.getServiceFields(CATALOG_ID, base.key) || base.fields;
+    return { ...base, fields };
+  }
+
+  // BUG corregido: sin "record" en la URL solo se mostraba el transporte base, ignorando
+  // transportes creados despues en Nuevo servicio. Ahora sale de la MISMA fuente que el
+  // contador de "Catálogos" (OperatorCatalogService.activeCount).
   records: CatalogRecordDefault[] = this.dynamicResource
     ? [this.dynamicResourceFields(this.dynamicResource)]
     : this.recordKey
       ? []
       : [
-          OPERATOR_CATALOG_DEFAULTS[CATALOG_ID].records[0],
+          this.defaultRecordFields(),
           ...this.catalogService.newServices()
-            .filter((resource) => resource.type === 'food')
+            .filter((resource) => resource.type === 'transport')
             .map((resource) => this.dynamicResourceFields(resource)),
         ];
 

@@ -40,6 +40,25 @@ export class OperationComponent {
     return execution.served ? `${execution.executed} viajeros` : 'No prestado';
   }
 
+  finalizeFeedback = signal('');
+
+  // Cierre operativo (Seccion 16 "Reserva"): disponible sobre cualquier ejecucion ya
+  // registrada que aun no este finalizada. No depende de si el servicio se presto o no:
+  // ambos casos deben poder cerrarse operativamente.
+  canFinalize(execution: RegisteredExecution['execution']): boolean {
+    return !execution.finalized;
+  }
+
+  finalize(code: string): void {
+    const result = this.operationService.finalizeExecution(code, this.roleService.roleLabel());
+    this.finalizeFeedback.set(
+      result
+        ? `Ejecución de la reserva #${code} finalizada. Ya no aparece como en ejecución activa.`
+        : `No fue posible finalizar la ejecución de la reserva #${code}.`,
+    );
+    this.refresh.update((n) => n + 1);
+  }
+
   costPanelOpen = signal(false);
   costFeedback = signal('Selecciona una ejecución registrada para asociar el costo.');
   costFeedbackValid = signal(false);

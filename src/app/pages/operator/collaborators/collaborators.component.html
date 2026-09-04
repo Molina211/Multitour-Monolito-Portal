@@ -31,3 +31,12 @@
     </div>
   }
 </section>
+
+<section class="operator-panel">
+  <div class="operator-panel-head">
+    <div><p class="operator-eyebrow">Permisos del equipo</p><h2>Validación de soportes de transferencia</h2></div>
+    <span class="operator-status" [class.is-confirmed]="canValidateSupport()" [class.is-cancelled]="!canValidateSupport()">{{ canValidateSupport() ? 'Habilitado' : 'Deshabilitado' }}</span>
+  </div>
+  <p class="operator-copy">Cuando está habilitado, el Colaborador operativo puede validar o rechazar soportes de transferencia en Pagos (PDR RF-015A). Deshabilitado por defecto: el Colaborador solo consulta el soporte.</p>
+  <button class="operator-outline" type="button" (click)="toggleCanValidateSupport()">{{ canValidateSupport() ? 'Deshabilitar' : 'Habilitar' }}</button>
+</section>

@@ -1,7 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { CashClosure, OperatorCashService } from '../operator-cash.service';
+import { CashClosure, OperatorCashService, formatTenantDateTime } from '../operator-cash.service';
 import { OperatorRoleService } from '../operator-role.service';
 
 function formatCOP(value: number): string {
@@ -11,7 +10,7 @@ function formatCOP(value: number): string {
 @Component({
   selector: 'app-operator-cash-history',
   standalone: true,
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink],
   templateUrl: './cash-history.component.html',
   styleUrl: './cash-history.component.css',
 })
@@ -30,6 +29,12 @@ export class CashHistoryComponent {
 
   formatAmount(value: number): string {
     return formatCOP(value);
+  }
+
+  // La fecha/hora del cierre y sus correcciones deben mostrarse SIEMPRE en la zona horaria
+  // local del tenant (America/Bogota), nunca en la del navegador de quien consulta.
+  formatDateTime(isoDate: string): string {
+    return formatTenantDateTime(isoDate);
   }
 
   correctionFeedbackFor(closureId: string): { message: string; valid: boolean } {

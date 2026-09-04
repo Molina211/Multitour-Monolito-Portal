@@ -15,7 +15,7 @@
       <div><span>Monto</span><strong>{{ request.amount }}</strong></div>
       <div><span>Motivo de la decisión</span><strong>{{ request.authorizationNote || request.rejectionReason || 'No aplica' }}</strong></div>
       <div><span>Responsable</span><strong>{{ request.executedBy || request.rejectedBy || request.authorizedBy || 'Sin responsable asignado' }}</strong></div>
-      <div><span>Fecha</span><strong>{{ request.requestedAt }}</strong></div>
+      <div><span>Fecha</span><strong>{{ request.executedAt ? (request.executedAt | date: 'medium') : request.requestedAt }}</strong></div>
       <div><span>Método de devolución/salida</span><strong>{{ request.exitMethod || 'No aplica' }}</strong></div>
       <div><span>Movimiento de caja asociado</span><strong>{{ request.cashMovementRef || 'No aplica' }}</strong></div>
       <div><span>Estado actual</span><strong>{{ request.status }}</strong></div>
@@ -86,7 +86,7 @@
         </div>
         <p class="operator-form-feedback" [class.is-valid]="executeFeedbackIsValid()">{{ executeFeedback() }}</p>
         <div class="operator-form-actions">
-          <button class="operator-primary" type="submit" [disabled]="executeDone()">Registrar ejecución</button>
+          <button class="operator-primary" type="submit" [disabled]="executeDone()">Registrar ejecución de devolución</button>
         </div>
       </form>
     </section>

@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { OperatorReservationService } from '../operator-reservation.service';
+import { OperatorRoleService } from '../operator-role.service';
 
 const SUPPORT_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 // Iconos genericos (no son comprobantes reales): solo representan el tipo de archivo adjunto.
@@ -46,10 +47,19 @@ export class ValidateSupportComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly reservationService = inject(OperatorReservationService);
+  private readonly roleService = inject(OperatorRoleService);
 
   readonly code = this.route.snapshot.queryParamMap.get('reservation') || '';
   readonly record = this.reservationService.getPendingSupportRecords().find((item) => item.code === this.code) || null;
   readonly notFound = !this.record;
+
+  // Restriccion base (PDR linea 114/554): el Colaborador operativo solo puede validar o
+  // rechazar soportes de transferencia cuando el tenant lo habilite expresamente. Sin ese
+  // permiso consulta el mismo soporte en modo solo lectura (nunca se le redirige fuera de la
+  // pantalla: "Ver soporte" sigue disponible desde Pagos).
+  readonly readOnlyForRole = this.roleService.isColaborador() && !this.roleService.collaboratorCanValidateSupport();
+  readonly title = this.readOnlyForRole ? 'Ver soporte' : 'Validar soporte';
+  readonly heading = this.readOnlyForRole ? 'Consulta del comprobante de pago' : 'Revisa el comprobante antes de decidir';
 
   private readonly initialDecision = this.record ? this.reservationService.getPaymentSupportDecision(this.code) : null;
 
@@ -70,13 +80,15 @@ export class ValidateSupportComponent {
   feedback = signal(
     this.notFound
       ? 'No se encontró el soporte de pago seleccionado. Vuelve a Pagos e ingresa nuevamente por Validar soporte.'
-      : this.initialDecision
-        ? `Este soporte ya fue ${this.initialDecision.status === 'Rechazado' ? 'rechazado' : 'validado'}. No se puede volver a decidir sobre el mismo intento.`
-        : 'Registra el motivo y decide si apruebas o rechazas el soporte.',
+      : this.readOnlyForRole
+        ? 'Consulta de solo lectura: el Colaborador operativo no tiene permiso para validar este soporte.'
+        : this.initialDecision
+          ? `Este soporte ya fue ${this.initialDecision.status === 'Rechazado' ? 'rechazado' : 'validado'}. No se puede volver a decidir sobre el mismo intento.`
+          : 'Registra el motivo y decide si apruebas o rechazas el soporte.',
   );
   feedbackIsValid = signal(false);
 
-  disabled = computed(() => this.notFound || this.resolved());
+  disabled = computed(() => this.notFound || this.resolved() || this.readOnlyForRole);
 
   decide(action: 'approve' | 'reject'): void {
     if (this.disabled() || !this.record) return;

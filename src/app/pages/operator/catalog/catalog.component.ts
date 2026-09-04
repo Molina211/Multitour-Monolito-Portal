@@ -1,6 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { OPERATOR_CATALOG_DEFAULTS, OperatorCatalogService } from '../operator-catalog.service';
+import { NEW_SERVICE_CATALOG_ID_BY_TYPE, OPERATOR_CATALOG_DEFAULTS, OperatorCatalogService } from '../operator-catalog.service';
 import { OperatorRoleService } from '../operator-role.service';
 
 interface SummaryRow {
@@ -29,6 +29,7 @@ export class CatalogComponent {
   toursActiveCount = computed(() => this.catalogService.activeCount('catalogo-catalog-panel'));
   lodgingActiveCount = computed(() => this.catalogService.activeCount('hospedaje-catalog-panel'));
   foodActiveCount = computed(() => this.catalogService.activeCount('alimentacion-catalog-panel'));
+  transportActiveCount = computed(() => this.catalogService.activeCount('transporte-catalog-panel'));
 
   summaryRows = computed<SummaryRow[]>(() => {
     const rows: SummaryRow[] = [];
@@ -61,9 +62,36 @@ export class CatalogComponent {
       active: this.catalogService.isActive('alimentacion-catalog-panel', food.key, food.active),
       detailLink: '/operator/catalog/food',
     });
+    const transport = OPERATOR_CATALOG_DEFAULTS['transporte-catalog-panel'].records[0];
+    rows.push({
+      name: transport.fields['name'] || transport.key,
+      type: 'Transporte',
+      policy: transport.fields['policy'] || 'Sin apartamiento previo',
+      validity: 'Vigente',
+      active: this.catalogService.isActive('transporte-catalog-panel', transport.key, transport.active),
+      detailLink: '/operator/catalog/transport',
+    });
+    const catalogIdRouteByType: Record<string, string> = {
+      'catalogo-catalog-panel': '/operator/catalog/tours',
+      'hospedaje-catalog-panel': '/operator/catalog/lodging',
+      'alimentacion-catalog-panel': '/operator/catalog/food',
+      'transporte-catalog-panel': '/operator/catalog/transport',
+    };
     for (const resource of this.catalogService.newServices()) {
       const typeLabels: Record<string, string> = { tour: 'Actividad principal', lodging: 'Hospedaje', food: 'Alimentación', transport: 'Transporte' };
-      rows.push({ name: resource.name, type: typeLabels[resource.type] || 'Servicio', policy: resource.policy, validity: `${resource.start} - ${resource.end}`, active: resource.active });
+      const catalogId = NEW_SERVICE_CATALOG_ID_BY_TYPE[resource.type];
+      const detailLink = catalogId ? catalogIdRouteByType[catalogId] : undefined;
+      rows.push({
+        name: resource.name,
+        type: typeLabels[resource.type] || 'Servicio',
+        policy: resource.policy,
+        validity: `${resource.start} - ${resource.end}`,
+        // BUG: antes leia resource.active (fijo desde su creacion); debe reflejar
+        // Activar/Desactivar hecho despues sobre este MISMO recurso dinamico.
+        active: catalogId ? this.catalogService.isActive(catalogId, resource.id, resource.active) : resource.active,
+        detailLink,
+        detailQueryParams: detailLink ? { record: resource.id } : undefined,
+      });
     }
     return rows;
   });

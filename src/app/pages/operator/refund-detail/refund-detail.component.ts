@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { OperatorRefundService, RefundRequest } from '../operator-refund.service';
@@ -6,7 +7,7 @@ import { OperatorRoleService } from '../operator-role.service';
 @Component({
   selector: 'app-operator-refund-detail',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, DatePipe],
   templateUrl: './refund-detail.component.html',
   styleUrl: './refund-detail.component.css',
 })

@@ -1,6 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { OperatorRoleService, OPERATOR_COLLABORATOR_CAN_VALIDATE_SUPPORT } from '../operator-role.service';
+import { OperatorRoleService } from '../operator-role.service';
 import { OperatorReportsService } from '../operator-reports.service';
 import { OperatorCashService } from '../operator-cash.service';
 import { OperatorReservationService } from '../operator-reservation.service';
@@ -37,7 +37,7 @@ export class DashboardComponent {
   // Regla (PDR linea 114/554): el titulo de la tarjeta de pagos refleja si el tenant
   // habilito al Colaborador para validar soportes; nunca habilita la accion sin permiso.
   pagosLabel = computed(() =>
-    OPERATOR_COLLABORATOR_CAN_VALIDATE_SUPPORT ? 'Pagos y soportes por validar' : 'Pagos pendientes de seguimiento',
+    this.roleService.collaboratorCanValidateSupport() ? 'Pagos y soportes por validar' : 'Pagos pendientes de seguimiento',
   );
 
   // Mismo total ya mostrado en Caja (misma jornada, mismos movimientos): BASE + INGRESOS -

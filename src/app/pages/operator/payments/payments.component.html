@@ -4,7 +4,11 @@
 </header>
 <section class="operator-hero operator-hero-compact">
   <div><p class="operator-eyebrow">Validación</p><h2>Confirma pagos sin perder trazabilidad.</h2></div>
-  <p>Valida o rechaza soportes, registra abonos y autoriza devoluciones cuando corresponda.</p>
+  @if (roleService.isAdmin()) {
+    <p>Valida o rechaza soportes, registra abonos y autoriza devoluciones cuando corresponda.</p>
+  } @else {
+    <p>Consulta pagos, registra seguimientos y recepciones operativas, y ejecuta devoluciones previamente autorizadas cuando corresponda.</p>
+  }
 </section>
 <section class="operator-panel">
   <div class="operator-panel-head">
@@ -13,7 +17,7 @@
   </div>
   <div class="operator-table-wrap">
     <table class="operator-table">
-      <thead><tr><th>Reserva</th><th>Cliente</th><th>Modalidad</th><th>Valor recibido</th><th>Estado</th><th>Acción</th></tr></thead>
+      <thead><tr><th>Reserva</th><th>Cliente</th><th>Modalidad</th><th>Valor pendiente</th><th>Estado</th><th>Acción</th></tr></thead>
       <tbody>
         @for (record of pendingRecords(); track record.code) {
           <tr>
@@ -27,6 +31,8 @@
                 @if (record.action === 'validate') {
                   @if (canValidateSupport()) {
                     <a [routerLink]="['/operator/payments/validate']" [queryParams]="{ reservation: record.code }">Validar soporte</a>
+                  } @else {
+                    <a [routerLink]="['/operator/payments/validate']" [queryParams]="{ reservation: record.code }">Ver soporte</a>
                   }
                 } @else {
                   <a [routerLink]="['/operator/payments/followup']" [queryParams]="{ reservation: record.code }">Registrar seguimiento</a>
@@ -40,7 +46,13 @@
   </div>
 </section>
 <section class="operator-panel">
-  <p class="operator-eyebrow">Devoluciones monetarias</p><h2>Autorización requerida</h2>
-  <p class="operator-copy">El Administrador autoriza o registra la devolución, con monto, motivo, reserva y movimiento de caja asociados.</p>
+  <p class="operator-eyebrow">Devoluciones monetarias</p>
+  @if (roleService.isAdmin()) {
+    <h2>Autorización requerida</h2>
+    <p class="operator-copy">El Administrador autoriza o registra la devolución, con monto, motivo, reserva y movimiento de caja asociados.</p>
+  } @else {
+    <h2>Devoluciones autorizadas</h2>
+    <p class="operator-copy">Consulta las devoluciones autorizadas por el Administrador y registra la salida de dinero cuando corresponda.</p>
+  }
   <a class="operator-outline" routerLink="/operator/payments/refunds">Consultar solicitudes</a>
 </section>

@@ -41,6 +41,16 @@ export class ReservationDetailComponent {
   readonly cancellation = this.reservationService.getReservationCancellation(this.code);
   readonly showCancellationHistory = Boolean(this.cancellation) && !this.reservation?.refundOrigin;
 
+  // BUG corregido: una reserva ya Pagada con saldo $0 (o Cancelada) seguia mostrando
+  // "Gestionar pago" como si aun pudiera registrarse un nuevo movimiento. En modo consulta
+  // se ofrece "Ver pagos" en su lugar; el registro de nuevos pagos se sigue bloqueando
+  // dentro de Gestión de pago (PaymentManagementComponent.isSettled), esto solo corrige la
+  // etiqueta/expectativa de la accion desde Detalle.
+  readonly isSettled = Boolean(
+    this.reservation &&
+      (this.reservation.statusClass === 'is-cancelled' || (this.reservation.payment === 'Pagado' && this.reservation.balance === '$0')),
+  );
+
   private readonly originalFinal = OPERATOR_RESERVATIONS[this.code]?.final;
 
   previousValue = computed(() => (this.adjustment ? this.originalFinal || '$0' : '$0'));

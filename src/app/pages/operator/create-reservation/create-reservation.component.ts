@@ -1,8 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { KeyValuePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { OPERATOR_TODAY_DATE, OperatorReservationService } from '../operator-reservation.service';
-import { OPERATOR_CATALOG_DEFAULTS, OperatorCatalogService } from '../operator-catalog.service';
+import { CompanionRecord, OPERATOR_TODAY_DATE, OperatorReservationService } from '../operator-reservation.service';
+import { OPERATOR_CATALOG_DEFAULTS, OperatorCatalogService, TransportCatalogOption } from '../operator-catalog.service';
 
 interface ServiceOption {
   key: string;
@@ -11,30 +11,41 @@ interface ServiceOption {
   discount: number;
   risk: boolean;
   lodgingCapacity: number;
-  departures: string[];
+  start: string;
+  end: string;
   payments: string[];
   inclusions: string[];
   conditions: string[];
+  // RN-TRA-001/002: transporte REAL asociado a este Tour (relacion Tour -> Transporte
+  // configurada por el Administrador en Nuevo servicio, resuelta en vivo desde
+  // OperatorCatalogService). null si el Tour no tiene transporte asociado, o si el
+  // transporte asociado ya no esta activo. Nunca se hardcodea un trayecto/tarifa aqui.
+  associatedTransport: TransportCatalogOption | null;
 }
 
 const TOUR_CATALOG_ID = 'catalogo-catalog-panel';
 const LODGING_CATALOG_ID = 'hospedaje-catalog-panel';
 
-// El catalogo de Catálogos (OPERATOR_CATALOG_DEFAULTS) todavia no modela salidas
-// especificas, medios de pago aceptados ni inclusiones por servicio. Estos datos
-// complementarios YA aprobados para los 4 tours base se conservan aqui, ligados al MISMO
-// key/nombre ya usado en Catálogos: la identidad, tarifa, vigencia y estado activo/inactivo
-// del servicio siempre se leen en vivo desde Catálogos, nunca desde esta lista.
+// El catalogo de Catálogos (OPERATOR_CATALOG_DEFAULTS) todavia no modela medios de pago
+// aceptados ni inclusiones por servicio. Estos datos complementarios YA aprobados para los 4
+// tours base se conservan aqui, ligados al MISMO key/nombre ya usado en Catálogos: la
+// identidad, tarifa, vigencia y estado activo/inactivo del servicio siempre se leen en vivo
+// desde Catálogos, nunca desde esta lista.
+// CORRECCION PDR v1.7.1 (03-product/prd.md linea 1006): el PDR no define una parametrizacion
+// independiente de "salidas", por lo que este mapa ya no expone una lista propia de fechas.
+// AJUSTE (Tour <-> Transporte real): "inclusions" ya no declara un texto fijo de
+// transporte ("Transporte incluido: ..."). La informacion de transporte de cada Tour
+// ahora sale exclusivamente de la relacion real Tour -> Transporte (OperatorCatalogService,
+// configurada en Nuevo servicio), nunca de un texto hardcodeado aqui.
 const KNOWN_TOUR_DETAILS: Record<
   string,
-  Pick<ServiceOption, 'discount' | 'risk' | 'departures' | 'payments' | 'inclusions' | 'conditions'>
+  Pick<ServiceOption, 'discount' | 'risk' | 'payments' | 'inclusions' | 'conditions'>
 > = {
   'Tour destino ejemplo - Montañas': {
     discount: 0.2,
     risk: false,
-    departures: ['15 sep 2026', '22 sep 2026', '29 sep 2026'],
     payments: ['Transferencia', 'Efectivo', 'Abono'],
-    inclusions: ['Alimentación incluida: plato del día', 'Transporte incluido: trayecto de ida y vuelta'],
+    inclusions: ['Alimentación incluida: plato del día'],
     conditions: [
       'La modificación o cancelación depende de las condiciones vigentes del tour.',
       'La disponibilidad y los valores se validan antes de registrar la reserva.',
@@ -43,9 +54,8 @@ const KNOWN_TOUR_DETAILS: Record<
   'Aventura en cenotes ocultos': {
     discount: 0,
     risk: false,
-    departures: ['12 sep 2026', '19 sep 2026'],
     payments: ['Transferencia', 'Efectivo', 'Abono'],
-    inclusions: ['Alimentación incluida: snack ligero', 'Transporte incluido: traslado al punto de salida'],
+    inclusions: ['Alimentación incluida: snack ligero'],
     conditions: [
       'La modificación o cancelación depende de las condiciones vigentes del tour.',
       'La disponibilidad y los valores se validan antes de registrar la reserva.',
@@ -54,9 +64,8 @@ const KNOWN_TOUR_DETAILS: Record<
   'Rafting y acampada extrema': {
     discount: 0,
     risk: true,
-    departures: ['13 sep 2026', '27 sep 2026'],
     payments: ['Transferencia', 'Abono'],
-    inclusions: ['Alimentación incluida: refrigerio de la actividad', 'Transporte incluido: traslado al punto de salida'],
+    inclusions: ['Alimentación incluida: refrigerio de la actividad'],
     conditions: [
       'La actividad requiere requisitos de riesgo para cada viajero.',
       'La modificación o cancelación depende de las condiciones vigentes del servicio.',
@@ -65,9 +74,8 @@ const KNOWN_TOUR_DETAILS: Record<
   'Recorrido cultural e histórico': {
     discount: 0,
     risk: false,
-    departures: ['16 sep 2026', '23 sep 2026', '30 sep 2026'],
     payments: ['Transferencia', 'Efectivo'],
-    inclusions: ['Alimentación incluida: opción gastronómica del recorrido', 'Transporte incluido: trayecto programado'],
+    inclusions: ['Alimentación incluida: opción gastronómica del recorrido'],
     conditions: [
       'La modificación o cancelación depende de las condiciones vigentes del servicio.',
       'Los descuentos se aplican según la configuración comercial vigente.',
@@ -86,14 +94,15 @@ function parseCOP(value: string | undefined): number {
   return Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
 }
 
-// Regla 1/2/5: la vigencia (rango inicio-fin) del catalogo NO es una salida reservable.
-// Sin salidas especificas configuradas para el servicio, no se inventa ninguna fecha: si
-// inicio y fin coinciden, esa unica fecha SI es una salida real; si son distintos, es un
-// rango de vigencia sin salida puntual definida y no se muestra ninguna.
-function resolveVigenciaDepartures(start: string, end: string): string[] {
-  if (!start) return [];
-  if (!end || end === start) return [start];
-  return [];
+// Convierte el formato ya usado en Catálogos ("01 sep 2026") a ISO (yyyy-mm-dd), necesario
+// para acotar el selector de fecha del servicio a su vigencia real (min/max).
+const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+function parseCatalogDate(text: string | undefined): string {
+  const match = /^(\d{1,2})\s+([a-z]{3})\s+(\d{4})$/i.exec((text || '').trim());
+  if (!match) return '';
+  const monthIndex = MONTH_ABBR.indexOf(match[2].toLowerCase());
+  if (monthIndex === -1) return '';
+  return `${match[3]}-${String(monthIndex + 1).padStart(2, '0')}-${match[1].padStart(2, '0')}`;
 }
 
 function normalizeDocument(value: string): string {
@@ -129,7 +138,7 @@ export class CreateReservationComponent {
       if (!this.catalogService.isActive(TOUR_CATALOG_ID, record.key, record.active)) continue;
       const details = KNOWN_TOUR_DETAILS[record.key];
       const [validityStart, validityEnd] = (record.fields['validity'] || '').split(' - ');
-      const configuredDepartures = this.catalogService.getDepartures(record.key);
+      const start = parseCatalogDate(validityStart);
       result[record.key] = {
         key: record.key,
         name: record.fields['name'] || record.key,
@@ -137,15 +146,19 @@ export class CreateReservationComponent {
         discount: details?.discount ?? 0,
         risk: details?.risk ?? false,
         lodgingCapacity,
-        departures: configuredDepartures ?? (details ? details.departures : resolveVigenciaDepartures(validityStart, validityEnd)),
+        start,
+        end: parseCatalogDate(validityEnd) || start,
         payments: details?.payments ?? DEFAULT_PAYMENT_METHODS,
         inclusions: details?.inclusions ?? [],
         conditions: details?.conditions ?? [GENERIC_CONDITION],
+        // Relacion Tour -> Transporte real (RN-TRA-001/002), resuelta en vivo: si el
+        // Administrador nunca asocio un transporte a este Tour, o si el asociado ya no
+        // esta activo, esto es null (nunca se inventa ni se conserva uno inexistente).
+        associatedTransport: this.catalogService.getTourTransport(record.key),
       };
     }
     for (const resource of this.catalogService.newServices()) {
       if (resource.type !== 'tour' || !resource.active) continue;
-      const configuredDepartures = this.catalogService.getDepartures(resource.id);
       result[resource.id] = {
         key: resource.id,
         name: resource.name,
@@ -153,22 +166,33 @@ export class CreateReservationComponent {
         discount: 0,
         risk: false,
         lodgingCapacity: resource.capacity ?? lodgingCapacity,
-        departures: configuredDepartures ?? resolveVigenciaDepartures(resource.start, resource.end),
+        start: resource.start,
+        end: resource.end,
         payments: DEFAULT_PAYMENT_METHODS,
         inclusions: [],
         conditions: [resource.policy || GENERIC_CONDITION],
+        associatedTransport: this.catalogService.getTourTransport(resource.id),
       };
     }
     return result;
   });
 
+  // Transporte (PDR 1.7.1, RN-TRA-001/002): mismo catalogo real de Transporte ya usado en
+  // Catálogos/Nuevo servicio (solo activo y vigente). Este selector general SOLO aplica a
+  // Tours sin transporte asociado (ver serviceIncludesTransport); para los que ya tienen
+  // uno real asociado, ofrecerlo duplicaria o contradiria el transporte del Tour.
+  transportOptions = computed<TransportCatalogOption[]>(() => this.catalogService.getActiveTransportOptions());
+
   serviceKey = signal('');
   departure = signal('');
   travelers = signal(2);
   lodging = signal('none');
+  transport = signal('none');
   paymentMethod = signal('');
   holderDocument = signal('');
   companionDocuments = signal<string[]>([]);
+  companionNames = signal<string[]>([]);
+  companionBirthDates = signal<string[]>([]);
   formValid = signal(false);
   feedback = signal('Completa los campos obligatorios para registrar la reserva.');
   feedbackIsValid = signal(false);
@@ -182,20 +206,66 @@ export class CreateReservationComponent {
     return this.lodging() !== 'none' && !!service && this.travelers() > service.lodgingCapacity;
   });
 
+  // CASO A/B (Tour <-> Transporte real): si el Tour seleccionado tiene un transporte
+  // realmente asociado (Nuevo servicio), se reconoce automaticamente y el selector manual
+  // no se ofrece (evita la contradiccion "Transporte incluido" + "No aplica"). Si no tiene
+  // ninguno asociado, se habilita el selector manual de transportes activos (CASO B).
+  serviceIncludesTransport = computed(() => Boolean(this.selectedService()?.associatedTransport));
+
+  selectedTransport = computed<TransportCatalogOption | null>(() => {
+    const service = this.selectedService();
+    if (service?.associatedTransport) return service.associatedTransport;
+    if (this.serviceIncludesTransport()) return null;
+    return this.transportOptions().find((option) => option.key === this.transport()) || null;
+  });
+  transportOverCapacity = computed(() => {
+    const option = this.selectedTransport();
+    if (!option || option.capacity == null) return false;
+    if (!this.serviceIncludesTransport() && this.transport() === 'none') return false;
+    return this.travelers() > option.capacity;
+  });
+  transportHasKnownCapacity = computed(() => {
+    const option = this.selectedTransport();
+    return !!option && option.capacity != null;
+  });
+
   duplicatedDocument = computed(() => {
     const docs = [this.holderDocument(), ...this.companionDocuments()].map(normalizeDocument).filter(Boolean);
     return docs.some((doc, index) => docs.indexOf(doc) !== index);
   });
 
-  serviceReady = computed(() => Boolean(this.selectedService() && this.departure()));
+  // CORRECCION PDR v1.7.1: la fecha del servicio se valida contra su vigencia de oferta
+  // (activo + rango de fechas), no contra una lista de salidas parametrizadas aparte.
+  dateWithinValidity = computed(() => {
+    const service = this.selectedService();
+    const date = this.departure();
+    return Boolean(service && date && date >= service.start && date <= service.end);
+  });
+  serviceReady = computed(() => Boolean(this.selectedService()) && this.dateWithinValidity());
 
+  departureHint = computed(() => {
+    const service = this.selectedService();
+    if (!service) return 'Selecciona primero un servicio';
+    if (service.start === service.end) return `Fecha disponible: ${service.start}.`;
+    return `Selecciona una fecha entre ${service.start} y ${service.end}.`;
+  });
+
+  // Recalculo reactivo (PDR RN-TRA-001, tarifa por persona): al cambiar el servicio, la
+  // cantidad de viajeros o el transporte seleccionado, el valor proyectado se recalcula
+  // automaticamente porque depende de estos MISMOS signals.
   projected = computed(() => {
     const service = this.selectedService();
-    return service ? service.price * this.travelers() : 0;
+    if (!service) return 0;
+    const transportOption = this.selectedTransport();
+    const transportCost = transportOption ? transportOption.price * this.travelers() : 0;
+    return service.price * this.travelers() + transportCost;
   });
+  // El descuento parametrizado del servicio (RF-005/RN-RES-002) se calcula sobre el valor
+  // del servicio principal, no sobre el transporte: no existe en el catalogo un descuento
+  // propio para Transporte, y no se inventa uno extendiendo el del tour.
   discountValue = computed(() => {
     const service = this.selectedService();
-    return service ? this.projected() * service.discount : 0;
+    return service ? service.price * this.travelers() * service.discount : 0;
   });
   finalValue = computed(() => this.projected() - this.discountValue());
 
@@ -217,6 +287,9 @@ export class CreateReservationComponent {
     this.serviceKey.set(value);
     this.departure.set('');
     this.paymentMethod.set('');
+    // El transporte independiente seleccionado para un servicio anterior no debe
+    // arrastrarse a uno nuevo (menos aun si el nuevo servicio ya trae transporte incluido).
+    this.transport.set('none');
   }
 
   onTravelersChange(value: string): void {
@@ -233,12 +306,32 @@ export class CreateReservationComponent {
     this.companionDocuments.set(next);
   }
 
+  setCompanionName(index: number, value: string): void {
+    const next = [...this.companionNames()];
+    next[index] = value;
+    this.companionNames.set(next);
+  }
+
+  setCompanionBirthDate(index: number, value: string): void {
+    const next = [...this.companionBirthDates()];
+    next[index] = value;
+    this.companionBirthDates.set(next);
+  }
+
   validate(form: HTMLFormElement): void {
     const service = this.selectedService();
-    const isValid = Boolean(this.serviceReady() && form.checkValidity() && !this.lodgingOverCapacity() && !this.duplicatedDocument());
+    const isValid = Boolean(
+      this.serviceReady() &&
+        form.checkValidity() &&
+        !this.lodgingOverCapacity() &&
+        !this.transportOverCapacity() &&
+        !this.duplicatedDocument(),
+    );
     this.formValid.set(isValid);
     if (!service) this.feedback.set('Selecciona un servicio para consultar sus requisitos y valores.');
+    else if (!this.dateWithinValidity() && this.departure()) this.feedback.set('La fecha seleccionada está fuera de la vigencia del servicio.');
     else if (this.lodgingOverCapacity()) this.feedback.set('La capacidad del hospedaje no cubre la cantidad total de viajeros.');
+    else if (this.transportOverCapacity()) this.feedback.set('La capacidad del transporte no cubre la cantidad total de viajeros.');
     else if (this.duplicatedDocument()) this.feedback.set('El documento del titular y los acompañantes debe ser único dentro de la reserva.');
     else if (!form.checkValidity()) this.feedback.set('Completa los campos obligatorios y registra los requisitos aplicables.');
     else this.feedback.set('La reserva cumple las validaciones y está lista para registrarse.');
@@ -253,10 +346,26 @@ export class CreateReservationComponent {
 
     const service = this.selectedService();
     if (!service) return;
-    const holderName = String(new FormData(form).get('holderName') || '').trim();
+    const data = new FormData(form);
+    const holderName = String(data.get('holderName') || '').trim();
     const code = 'RES-1843';
     const projected = this.projected();
     const discount = this.discountValue();
+
+    // Acompañantes individualizados (PDR RN-CLI-002/RN-RES-005): mientras el Backend solo
+    // recibe partySize (BACKEND API FALTANTE — ACOMPAÑANTES), estos datos se conservan
+    // localmente junto al resumen agregado ya usado por el resto de pantallas.
+    const companionRecords: CompanionRecord[] = this.companionIndexes().map((index) => ({
+      name: (this.companionNames()[index] || '').trim(),
+      document: (this.companionDocuments()[index] || '').trim(),
+      birthDate: this.companionBirthDates()[index] || '',
+    }));
+    const transportOption = this.selectedTransport();
+    const transportSelected = transportOption
+      ? this.serviceIncludesTransport()
+        ? `Asociado al Tour — ${transportOption.name} (${transportOption.route})`
+        : `${transportOption.name} — ${transportOption.route}`
+      : undefined;
 
     this.reservationService.saveDraft({
       code,
@@ -279,6 +388,9 @@ export class CreateReservationComponent {
       execution: 'Pendiente de ejecución',
       action: 'Gestionar pago',
       href: 'admin-pagos.html',
+      holderDocument: this.holderDocument().trim(),
+      companionRecords,
+      transportSelected,
     });
     this.router.navigateByUrl('/operator/reservations/created');
   }

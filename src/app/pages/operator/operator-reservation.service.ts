@@ -30,6 +30,26 @@ export interface OperatorReservation {
   // Origen de una solicitud de devolucion (RF-015B): solo presente cuando la reserva ya
   // tiene una cancelacion o modificacion registrada con causal y valor potencial a devolver.
   refundOrigin?: RefundOrigin;
+  // Documento del titular (RN-CLI-002): se conserva junto a la reserva para validar que no
+  // se repita entre el titular y los acompañantes.
+  holderDocument?: string;
+  // Acompañantes individualizados (RN-CLI-002/RN-RES-005). BACKEND API FALTANTE —
+  // ACOMPAÑANTES: el Backend actual solo recibe partySize (un numero), por lo que este
+  // detalle se conserva unicamente en el mecanismo local del Frontend hasta que exista un
+  // contrato real que lo soporte.
+  companionRecords?: CompanionRecord[];
+  // Transporte asociado a la reserva cuando aplica (RN-TRA-001/002). BACKEND API FALTANTE —
+  // TRANSPORTE: el catalogo de transporte ya existe localmente (OperatorCatalogService),
+  // pero no hay endpoint de Backend que lo modele como recurso de catalogo propio.
+  transportSelected?: string;
+}
+
+// Acompañante individual de una reserva (RN-CLI-002/RN-RES-005): nombre, documento y fecha
+// de nacimiento son los unicos datos respaldados por el PDR para todo viajero adicional.
+export interface CompanionRecord {
+  name: string;
+  document: string;
+  birthDate: string;
 }
 
 export interface RefundOrigin {
@@ -88,6 +108,15 @@ export interface ReservationCancellation {
   registeredAt: string;
 }
 
+// Trazabilidad de abonos/pagos (CORREGIR: "la relacion economica no es consistente si
+// $800.000 representa el total acumulado"). Cada pago/abono realmente registrado queda
+// como un movimiento propio, en vez de reemplazar el historico por un unico numero.
+export interface PaymentMovement {
+  amount: string;
+  method: string;
+  registeredAt: string;
+}
+
 export interface ReservationModification {
   service: string;
   date: string;
@@ -126,6 +155,17 @@ const REFUND_ORIGINS_KEY = 'multitour-refund-origins';
 const RESERVATION_CANCELLATIONS_KEY = 'multitour-reservation-cancellations';
 // Misma clave ya usada en la landing aprobada (app.js: OPERATOR_RESERVATION_MODIFICATIONS_KEY).
 const RESERVATION_MODIFICATIONS_KEY = 'multitour-reservation-modifications';
+// Misma clave ya usada por OperatorOperationService (Operación y costos): se lee aqui
+// directamente (sin inyectar ese servicio, para no crear una dependencia circular) unicamente
+// para que Reservas y Detalle de reserva reflejen el MISMO estado real de ejecucion/
+// finalizacion, en vez de mostrar un estado desactualizado fuera de esa pantalla.
+const RESERVATION_EXECUTIONS_KEY = 'multitour-reservation-executions';
+// Historial de movimientos de pago/abono por reserva (trazabilidad, RN-RES-006).
+const PAYMENT_MOVEMENTS_KEY = 'multitour-payment-movements';
+
+interface ReservationExecutionOverlay {
+  finalized?: boolean;
+}
 const RESOLVED_SUPPORT_STATUSES = ['Pagado', 'Parcial', 'Rechazado'];
 const CANCEL_OR_MODIFY_INELIGIBLE_STATUSES = ['is-finalized', 'is-cancelled'];
 
@@ -193,8 +233,27 @@ export class OperatorReservationService {
   getPendingSupportRecords(): PendingSupportRecord[] {
     const decisions = readStorage<Record<string, PaymentSupportDecision>>(PAYMENT_SUPPORT_STATE_KEY, {});
     return PENDING_SUPPORT_RECORDS.map((record) => {
+      let result = record;
       const decision = decisions[record.code];
-      return decision ? { ...record, status: decision.status } : record;
+      if (decision) result = { ...result, status: decision.status };
+      // BUG corregido: "Valor pendiente" para seguimiento (follow-up) era un monto fijo
+      // desconectado del saldo real de la reserva (ej. RES-1837 mostraba $800.000 mientras
+      // Detalle/Gestion de pago mostraban un saldo real de $2.078.400). Ahora se deriva del
+      // MISMO saldo (OperatorReservation.balance), una sola fuente para todas las pantallas.
+      if (record.action === 'follow-up') {
+        const reservation = this.getReservation(record.code);
+        if (reservation) result = { ...result, amount: reservation.balance };
+      }
+      return result;
+    }).filter((record) => {
+      // BUG corregido (RF-015/RN-RES-006A/006B): una reserva de seguimiento (Abono) ya
+      // liquidada (saldo $0, Pagado) dejaba de ser un pago pendiente real, pero seguia
+      // apareciendo en "Pagos pendientes" con "Registrar seguimiento" disponible. Solo
+      // aplica a filas de seguimiento: las de validacion de soporte (Transferencia) siguen
+      // su propio ciclo de decision, sin tocar ese flujo.
+      if (record.action !== 'follow-up') return true;
+      const reservation = this.getReservation(record.code);
+      return !reservation || !(reservation.payment === 'Pagado' && reservation.balance === '$0');
     });
   }
 
@@ -326,6 +385,34 @@ export class OperatorReservationService {
       };
     }
 
+    // La condicion de ejecucion depende del estado economico REAL de la reserva. Si el
+    // soporte de pago ya fue decidido (Validar soporte), se refleja aqui con la MISMA regla
+    // ya aprobada en Gestion de pago (saldo en 0 -> Confirmada; saldo pendiente -> sigue
+    // Pendiente de pago), para que "Registrar ejecución" (Operación y costos) se habilite
+    // cuando corresponda.
+    const supportDecision = this.getPaymentSupportDecision(code);
+    if (supportDecision && (supportDecision.status === 'Pagado' || supportDecision.status === 'Parcial')) {
+      reservation = {
+        ...reservation,
+        paid: supportDecision.paid,
+        balance: supportDecision.balance,
+        payment: supportDecision.status,
+        status: supportDecision.status === 'Pagado' ? 'Confirmada' : 'Pendiente de pago',
+        statusClass: supportDecision.status === 'Pagado' ? 'is-confirmed' : 'is-pending',
+      };
+    }
+
+    // Ejecucion/finalizacion (RF-007, Seccion 16 "Reserva" - transicion En ejecucion a
+    // Finalizada): si Operación y costos ya registro una ejecucion para esta reserva, ese
+    // estado real se refleja tambien en Reservas y Detalle de reserva. No cambia precio,
+    // descuentos, pagos ni saldo: solo el estado de la reserva y de su ejecucion.
+    const execution = readStorage<Record<string, ReservationExecutionOverlay>>(RESERVATION_EXECUTIONS_KEY, {})[code];
+    if (execution) {
+      reservation = execution.finalized
+        ? { ...reservation, status: 'Finalizada', statusClass: 'is-finalized', execution: 'Finalizada' }
+        : { ...reservation, status: 'En ejecución', statusClass: 'is-execution', execution: 'En ejecución' };
+    }
+
     // Una cancelacion registrada (RF-008A, linea 972) siempre deja la reserva en
     // "Cancelada", tenga o no dinero pagado que devolver: nunca debe seguir mostrandose
     // en un estado anterior como "En ejecucion". El estado de ejecucion del servicio pasa
@@ -354,6 +441,30 @@ export class OperatorReservationService {
 
   getAllReservationCancellations(): ReservationCancellation[] {
     return Object.values(readStorage<Record<string, ReservationCancellation>>(RESERVATION_CANCELLATIONS_KEY, {}));
+  }
+
+  // Trazabilidad de abonos: cada pago/abono realmente registrado (Gestión de pago) queda
+  // como un movimiento propio, append-only, nunca se reemplaza por un unico numero.
+  getPaymentMovements(code: string): PaymentMovement[] {
+    return readStorage<Record<string, PaymentMovement[]>>(PAYMENT_MOVEMENTS_KEY, {})[code] || [];
+  }
+
+  addPaymentMovement(code: string, amount: string, method: string): void {
+    const all = readStorage<Record<string, PaymentMovement[]>>(PAYMENT_MOVEMENTS_KEY, {});
+    all[code] = [...(all[code] || []), { amount, method, registeredAt: new Date().toISOString() }];
+    localStorage.setItem(PAYMENT_MOVEMENTS_KEY, JSON.stringify(all));
+  }
+
+  // TOTAL RECIBIDO = suma de todos los pagos/abonos validos registrados en el historial de
+  // movimientos. Si aun no hay movimientos propios registrados (reservas demo con un monto
+  // ya cargado antes de que existiera este historial), se usa el "paid" ya conocido como
+  // unico movimiento implicito, sin inventar un desglose que no existe.
+  getTotalReceived(code: string): number {
+    const movements = this.getPaymentMovements(code);
+    if (movements.length > 0) {
+      return movements.reduce((sum, movement) => sum + parseCOP(movement.amount), 0);
+    }
+    return parseCOP(this.getReservation(code)?.paid);
   }
 
   getReservationModification(code: string): ReservationModification | null {

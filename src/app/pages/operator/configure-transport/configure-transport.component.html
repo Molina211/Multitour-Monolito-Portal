@@ -1,0 +1,32 @@
+<header class="operator-topbar"><div><p class="operator-eyebrow">Transporte</p><h1>Configurar transporte</h1></div><a class="operator-outline" routerLink="/operator/catalog/transport">Volver a transporte</a></header>
+
+<form class="operator-reservation-form" (submit)="onSubmit($event)" novalidate>
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Rutas y capacidad</p><h2>Datos del recurso de transporte</h2>
+    <p class="operator-copy">Estado actual <span class="operator-status" [class.is-confirmed]="isActive" [class.is-cancelled]="!isActive">{{ isActive ? 'Activo' : 'Inactivo' }}</span></p>
+    <p class="operator-copy">El estado se cambia desde Activar/Desactivar en el listado.</p>
+    <div class="operator-form-grid">
+      <label>Recurso<input required type="text" [disabled]="readOnly" [value]="name()" (input)="name.set($any($event.target).value)" /></label>
+      <label>Trayecto (origen - destino o descripción)<input type="text" placeholder="Por configurar" [disabled]="readOnly" [value]="route()" (input)="route.set($any($event.target).value)" /></label>
+      <label>Capacidad (viajeros)<input required type="number" min="1" step="1" [disabled]="readOnly" [value]="capacity()" (input)="capacity.set($any($event.target).value)" /></label>
+      <label>Tarifa base<input type="text" placeholder="Por configurar" [disabled]="readOnly" [value]="tariff()" (input)="tariff.set($any($event.target).value)" /></label>
+      <label>Costo base<input type="text" placeholder="Por configurar" [disabled]="readOnly" [value]="cost()" (input)="cost.set($any($event.target).value)" /></label>
+      <label>Política de cupo
+        <select required [disabled]="readOnly" [value]="policy()" (change)="policy.set($any($event.target).value)">
+          <option>Confirmación directa solo con pago válido</option>
+          <option>Apartamiento temporal</option>
+          <option>Sin apartamiento previo</option>
+        </select>
+      </label>
+      <label>Vigencia desde<input type="date" [disabled]="readOnly" [value]="validityStart()" (input)="validityStart.set($any($event.target).value)" /></label>
+      <label>Vigencia hasta<input type="date" [disabled]="readOnly" [value]="validityEnd()" (input)="validityEnd.set($any($event.target).value)" /></label>
+    </div>
+  </section>
+  <p class="operator-form-feedback">{{ readOnly ? 'Consulta de solo lectura: el Colaborador operativo no puede modificar este recurso.' : feedback() }}</p>
+  <div class="operator-form-actions">
+    <a class="operator-outline" routerLink="/operator/catalog/transport">Cancelar</a>
+    @if (!readOnly) {
+      <button class="operator-primary" type="submit">Guardar cambios</button>
+    }
+  </div>
+</form>

@@ -1,12 +1,12 @@
 <header class="operator-topbar">
-  <div><p class="operator-eyebrow">Control de cobro</p><h1>Validar soporte</h1></div>
+  <div><p class="operator-eyebrow">Control de cobro</p><h1>{{ title }}</h1></div>
   <a class="operator-outline" routerLink="/operator/payments">Volver a pagos</a>
 </header>
 <p class="operator-access-note">Acción disponible para el Administrador del operador. El Colaborador operativo solo puede validar o rechazar soportes de transferencia cuando el tenant habilite ese flujo para su rol.</p>
 
 <form class="operator-reservation-form">
   <section class="operator-panel">
-    <p class="operator-eyebrow">Soporte de pago</p><h2>Revisa el comprobante antes de decidir</h2>
+    <p class="operator-eyebrow">Soporte de pago</p><h2>{{ heading }}</h2>
     <div class="operator-form-grid">
       <label>Reserva<input readonly type="text" [value]="code ? '#' + code : ''" /></label>
       <label>Cliente<input readonly type="text" [value]="record?.customer || ''" /></label>
@@ -28,22 +28,26 @@
           }
         </div>
       </div>
-      <label class="operator-form-wide">
-        Motivo (obligatorio)
-        <textarea
-          required
-          placeholder="Describe el motivo de la aprobación o el rechazo"
-          [disabled]="disabled()"
-          [value]="reason()"
-          (input)="reason.set($any($event.target).value)"
-        ></textarea>
-      </label>
+      @if (!readOnlyForRole) {
+        <label class="operator-form-wide">
+          Motivo (obligatorio)
+          <textarea
+            required
+            placeholder="Describe el motivo de la aprobación o el rechazo"
+            [disabled]="disabled()"
+            [value]="reason()"
+            (input)="reason.set($any($event.target).value)"
+          ></textarea>
+        </label>
+      }
     </div>
   </section>
   <p class="operator-form-feedback" [class.is-valid]="feedbackIsValid()">{{ feedback() }}</p>
   <div class="operator-form-actions">
     <a class="operator-outline" routerLink="/operator/payments">Volver a pagos</a>
-    <button class="operator-outline" type="button" [disabled]="disabled()" (click)="decide('reject')">Rechazar soporte</button>
-    <button class="operator-primary" type="button" [disabled]="disabled()" (click)="decide('approve')">Aprobar soporte</button>
+    @if (!readOnlyForRole) {
+      <button class="operator-outline" type="button" [disabled]="disabled()" (click)="decide('reject')">Rechazar soporte</button>
+      <button class="operator-primary" type="button" [disabled]="disabled()" (click)="decide('approve')">Aprobar soporte</button>
+    }
   </div>
 </form>

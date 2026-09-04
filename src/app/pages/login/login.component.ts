@@ -34,6 +34,13 @@ export class LoginComponent {
     this.passwordVisible.set(!this.passwordVisible());
   }
 
+  // BUG corregido: seleccionar "Cliente" e iniciar sesion no navegaba a ningun lado (solo
+  // mostraba un texto de "no implementado"). El PDR diferencia Cliente -> Portal Cliente de
+  // Administrador/Colaborador -> Portal del operador; la redireccion depende del perfil
+  // seleccionado, nunca envia al Cliente a /operator.
+  // BACKEND FALTANTE: no existe autenticacion real todavia (no se inventa un endpoint ni un
+  // JWT falso); se mantiene temporalmente la navegacion local ya usada para Equipo del
+  // operador, lista para sustituirse por el servicio API real cuando exista.
   onSubmit(event: Event): void {
     event.preventDefault();
     if (this.role() === 'staff') {
@@ -43,6 +50,7 @@ export class LoginComponent {
       window.setTimeout(() => this.router.navigateByUrl('/operator'), 500);
       return;
     }
-    this.feedback.set('Vista de referencia: el inicio de sesion real aun no esta implementado.');
+    this.feedback.set('Vista de referencia: sin autenticacion real todavia. Ingresando como cliente...');
+    window.setTimeout(() => this.router.navigateByUrl('/client'), 500);
   }
 }

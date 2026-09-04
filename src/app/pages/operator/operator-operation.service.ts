@@ -11,6 +11,11 @@ export interface ReservationExecution {
   causal: string;
   registeredAt: string;
   registeredBy: string;
+  // Cierre operativo (Seccion 16 "Reserva" - transicion En ejecucion a Finalizada): no
+  // cambia precio, descuentos, pagos ni saldo; solo cierra la ejecucion iniciada.
+  finalized?: boolean;
+  finalizedAt?: string;
+  finalizedBy?: string;
 }
 
 // Costos operacionales (RF-009, linea 469): solo pueden registrarse sobre una ejecucion
@@ -75,6 +80,9 @@ export class OperatorOperationService {
     if (reservation.statusClass === 'is-cancelled') return reservation;
     const execution = this.getExecution(code);
     if (!execution) return reservation;
+    if (execution.finalized) {
+      return { ...reservation, status: 'Finalizada', statusClass: 'is-finalized', execution: 'Finalizada' };
+    }
     return { ...reservation, status: 'En ejecución', statusClass: 'is-execution', execution: 'En ejecución' };
   }
 
@@ -120,6 +128,27 @@ export class OperatorOperationService {
     all[code] = execution;
     this.saveExecutions(all);
     return execution;
+  }
+
+  // Finalizar ejecución (Seccion 16 "Reserva": transicion En ejecucion a Finalizada, "cuando
+  // termina la prestacion del servicio y se cierra operativamente"). BACKEND API FALTANTE —
+  // FINALIZAR EJECUCIÓN: no existe endpoint real; el cierre queda en el mismo mecanismo
+  // local ya usado para registrar la ejecucion, de forma desacoplada para reemplazarlo
+  // despues por una API real sin cambiar esta firma.
+  // No modifica precio, descuentos, pagos ni saldo: solo cierra la ejecucion.
+  finalizeExecution(code: string, actor: string): ReservationExecution | null {
+    const execution = this.getExecution(code);
+    if (!execution || execution.finalized) return null;
+    const finalized: ReservationExecution = {
+      ...execution,
+      finalized: true,
+      finalizedAt: new Date().toISOString(),
+      finalizedBy: actor,
+    };
+    const all = this.getExecutions();
+    all[code] = finalized;
+    this.saveExecutions(all);
+    return finalized;
   }
 
   private getCosts(): OperationCost[] {

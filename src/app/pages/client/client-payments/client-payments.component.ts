@@ -1,7 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ClientReservationService, normalizeClientReservationStatus } from '../client-reservation.service';
-import { PlatformDataService } from '../../platform/platform-data.service';
 
 @Component({
   selector: 'app-client-payments',
@@ -12,9 +11,11 @@ import { PlatformDataService } from '../../platform/platform-data.service';
 })
 export class ClientPaymentsComponent {
   private readonly reservationService = inject(ClientReservationService);
-  private readonly platformService = inject(PlatformDataService);
 
-  tenantName = computed(() => this.platformService.tenants().find((tenant) => tenant.status === 'Activo')?.name || 'Multitour');
+  // BUG corregido: esta pantalla es la PLANTILLA GENERICA multitenant; resolver "el primer
+  // tenant Activo" mostraba el nombre de cualquier tenant creado en Plataforma. Sin sesion
+  // real de Cliente, se mantiene el placeholder literal (ver client-dashboard.component.ts).
+  tenantName = computed(() => '[Tu Marca]');
 
   // "Mis pagos": SOLO informacion economica de las reservas propias del Cliente. No
   // permite validar/rechazar soportes ni autorizar devoluciones (eso es exclusivo de

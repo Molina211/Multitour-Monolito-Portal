@@ -1,0 +1,63 @@
+<main class="travel-tours-shell">
+  <header class="travel-tours-header">
+    <a class="travel-tours-brand" routerLink="/">{{ tenantName() }}</a>
+    <nav class="travel-tours-nav" aria-label="Navegación principal del cliente">
+      <a routerLink="/client/tours">Explorar</a>
+      <a routerLink="/client/lodging">Alojamiento</a>
+      <a class="is-active" routerLink="/client/gastronomy">Gastronomía</a>
+      <a routerLink="/client">Reservas</a>
+      <a routerLink="/client/profile">Perfil</a>
+    </nav>
+  </header>
+
+  <section class="travel-tours-topbar">
+    <a class="travel-tours-back" routerLink="/client/gastronomy">
+      <span aria-hidden="true">&larr;</span>
+      <span>Volver a gastronomía</span>
+    </a>
+
+    <p class="travel-detail-screen-title">Restaurant Catalog</p>
+
+    <div class="travel-tours-search-row">
+      <input type="search" placeholder="Buscar restaurantes..." [value]="searchTerm()" (input)="onSearchInput($event)" />
+      <button type="button" (click)="onSearchInput($event)">Buscar</button>
+    </div>
+
+    <div class="travel-catalog-filter-row" aria-label="Filtros de restaurantes">
+      <a routerLink="/client/gastronomy">Todos</a>
+      <a class="is-active" routerLink="/client/gastronomy/restaurants">Restaurantes</a>
+    </div>
+  </section>
+
+  <section class="travel-restaurant-grid" aria-label="Catalogo de restaurantes">
+    @for (restaurant of filteredRestaurants(); track restaurant.id) {
+      <article class="travel-tour-card">
+        <div class="travel-tour-media restaurant-media-one">
+          @if (restaurant.image) {
+            <img class="gastronomy-card-image" [src]="restaurant.image" alt="Imagen de {{ restaurant.name }}" />
+          }
+        </div>
+        <div class="travel-tour-body">
+          <strong>{{ restaurant.name }}</strong>
+          <span class="travel-tour-location">Restaurante asociado</span>
+          <div class="travel-tour-meta">
+            <div></div>
+            <a class="travel-tour-detail-link" [routerLink]="['/client/gastronomy/detail']" [queryParams]="{ id: restaurant.id, source: 'restaurants' }">Ver detalles</a>
+          </div>
+        </div>
+      </article>
+    } @empty {
+      @if (restaurants().length === 0) {
+        <p class="travel-dashboard-copy">No hay restaurantes asociados activos en este momento.</p>
+      }
+    }
+  </section>
+
+  @if (showSearchEmpty()) {
+    <div class="travel-catalog-empty-state">
+      <strong>No encontramos resultados con esa búsqueda.</strong>
+      <p>Prueba con otra búsqueda.</p>
+      <button type="button" (click)="clearSearch()">Limpiar búsqueda</button>
+    </div>
+  }
+</main>

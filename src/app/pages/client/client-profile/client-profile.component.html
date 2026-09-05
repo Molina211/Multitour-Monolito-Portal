@@ -1,0 +1,151 @@
+<main class="travel-profile-page">
+  <header class="travel-profile-topbar">
+    <a class="travel-tours-back" routerLink="/client">
+      <span aria-hidden="true">&larr;</span>
+      <span>Volver al panel cliente</span>
+    </a>
+    <h1>Mi perfil</h1>
+    <div class="travel-profile-topbar-spacer"></div>
+  </header>
+
+  <section class="travel-profile-content">
+    <p class="travel-dashboard-copy">Consulta y actualiza tu información personal dentro del operador actual.</p>
+
+    <article class="travel-profile-info-card">
+      <div class="travel-profile-info-head">
+        <h2>Datos de la cuenta</h2>
+      </div>
+
+      <div class="travel-profile-info-grid">
+        <aside class="travel-profile-identity">
+          <div class="travel-profile-photo-wrap">
+            <div class="travel-profile-avatar-large">{{ initials() }}</div>
+            <span class="travel-profile-badge-dot" aria-hidden="true"></span>
+          </div>
+          <strong>{{ displayName() }}</strong>
+          <p>{{ displayEmail() }}</p>
+        </aside>
+
+        <div class="travel-profile-form-grid">
+          <label class="travel-profile-field-block">
+            <span>Nombre completo</span>
+            @if (editing()) {
+              <input type="text" [value]="editName()" (input)="editName.set($any($event.target).value)" />
+            } @else {
+              <input type="text" readonly [value]="displayName()" />
+            }
+          </label>
+
+          <label class="travel-profile-field-block">
+            <span>Correo electronico</span>
+            <input type="email" readonly [value]="displayEmail()" />
+          </label>
+
+          <label class="travel-profile-field-block">
+            <span>Rol</span>
+            <input type="text" readonly value="Cliente" />
+          </label>
+        </div>
+      </div>
+    </article>
+
+    <article class="travel-profile-info-card">
+      <div class="travel-profile-info-head">
+        <h2>Datos personales</h2>
+      </div>
+
+      <div class="travel-profile-form-grid">
+        <label class="travel-profile-field-block">
+          <span>Numero de telefono</span>
+          @if (editing()) {
+            <input type="text" [value]="editPhone()" (input)="editPhone.set($any($event.target).value)" />
+          } @else {
+            <input type="text" readonly [value]="displayPhone()" />
+          }
+        </label>
+      </div>
+
+      @if (editing()) {
+        <div class="travel-profile-footer">
+          <button type="button" class="travel-profile-logout" (click)="saveEdit()">Guardar cambios</button>
+          <a class="travel-profile-row-arrow" href="#" (click)="cancelEdit(); $event.preventDefault()">Cancelar</a>
+        </div>
+      }
+    </article>
+
+    <section class="travel-profile-stack">
+      <div class="travel-profile-section-headline">
+        <h2>Resumen</h2>
+      </div>
+
+      <div class="travel-profile-list-panel">
+        <article class="travel-profile-list-row">
+          <div class="travel-profile-row-icon">RA</div>
+          <div class="travel-profile-row-copy">
+            <strong>{{ activeReservationsCount() }}</strong>
+            <span>Reservas activas</span>
+          </div>
+        </article>
+
+        <article class="travel-profile-list-row">
+          <div class="travel-profile-row-icon">PP</div>
+          <div class="travel-profile-row-copy">
+            <strong>{{ pendingPaymentsCount() }}</strong>
+            <span>Pagos pendientes</span>
+          </div>
+        </article>
+
+        <article class="travel-profile-list-row">
+          <div class="travel-profile-row-icon">UR</div>
+          <div class="travel-profile-row-copy">
+            <strong>{{ lastReservationLabel() }}</strong>
+            <span>Ultima reserva</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="travel-profile-stack">
+      <div class="travel-profile-section-headline">
+        <h2>Seguridad</h2>
+      </div>
+
+      @if (feedback()) {
+        <p class="feedback" [class.is-success]="feedbackIsValid()">{{ feedback() }}</p>
+      }
+
+      <div class="travel-profile-list-panel">
+        <a class="travel-profile-list-row" href="#" (click)="startEdit(); $event.preventDefault()">
+          <div class="travel-profile-row-icon">EP</div>
+          <div class="travel-profile-row-copy">
+            <strong>Editar perfil</strong>
+            <span>Actualiza tu nombre completo y numero de telefono.</span>
+          </div>
+          <span class="travel-profile-row-arrow" aria-hidden="true">&rsaquo;</span>
+        </a>
+
+        <a class="travel-profile-list-row" routerLink="/recuperar">
+          <div class="travel-profile-row-icon">CC</div>
+          <div class="travel-profile-row-copy">
+            <strong>Cambiar contraseña</strong>
+            <span>Reutiliza el flujo de recuperación de contraseña ya existente.</span>
+          </div>
+          <span class="travel-profile-row-arrow" aria-hidden="true">&rsaquo;</span>
+        </a>
+
+        <a class="travel-profile-list-row" routerLink="/client">
+          <div class="travel-profile-row-icon">VP</div>
+          <div class="travel-profile-row-copy">
+            <strong>Volver al panel</strong>
+            <span>Regresa al panel cliente.</span>
+          </div>
+          <span class="travel-profile-row-arrow" aria-hidden="true">&rsaquo;</span>
+        </a>
+      </div>
+    </section>
+
+    <div class="travel-profile-footer">
+      <a class="travel-profile-logout" routerLink="/login">Cerrar sesion</a>
+    </div>
+  </section>
+</main>

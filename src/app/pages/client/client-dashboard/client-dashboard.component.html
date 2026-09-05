@@ -2,15 +2,15 @@
   <header class="travel-dashboard-header">
     <a class="travel-dashboard-brand" routerLink="/">{{ tenantName() }}</a>
     <div class="travel-dashboard-header-actions">
-      <a class="travel-dashboard-header-link" routerLink="/">Ver catálogo</a>
-      <span class="travel-dashboard-avatar" aria-label="Perfil del usuario">FN</span>
+      <a class="travel-dashboard-header-link" routerLink="/client/tours">Ver catálogo</a>
+      <a class="travel-dashboard-avatar" routerLink="/client/profile" aria-label="Perfil del usuario">FN</a>
     </div>
   </header>
 
   <section class="travel-dashboard-hero">
     <div class="travel-dashboard-copy">
       <p class="travel-dashboard-eyebrow">Portal cliente</p>
-      <h1>Hola, Fernanda</h1>
+      <h1>Hola, {{ greetingName() }}</h1>
       <p>Consulta la oferta disponible, revisa tus reservas y continúa la gestión de tus próximos viajes desde un solo lugar.</p>
     </div>
 
@@ -18,12 +18,12 @@
       <label class="travel-dashboard-search-label" for="dashboard-search">Buscar tours, alojamiento o experiencias</label>
       <div class="travel-dashboard-search-row">
         <input id="dashboard-search" type="search" placeholder="Buscar tours, alojamiento o experiencias..." />
-        <button type="button" routerLink="/">Buscar</button>
+        <button type="button" routerLink="/client/tours">Buscar</button>
       </div>
       <div class="travel-dashboard-filter-row">
-        <a routerLink="/">Gastronomía</a>
-        <a routerLink="/">Tours</a>
-        <a routerLink="/">Alojamiento</a>
+        <a routerLink="/client/gastronomy">Gastronomía</a>
+        <a routerLink="/client/tours">Tours</a>
+        <a routerLink="/client/lodging">Alojamiento</a>
       </div>
     </div>
   </section>
@@ -31,14 +31,16 @@
   <section class="travel-dashboard-section">
     <div class="travel-dashboard-section-head"><h2>Acciones rápidas</h2></div>
     <div class="travel-dashboard-actions-grid">
-      <a class="travel-dashboard-action-card" routerLink="/">
+      <a class="travel-dashboard-action-card" routerLink="/client/tours">
         <span>Nueva reserva</span>
         <strong>Inicia una nueva reserva</strong>
       </a>
-      <a class="travel-dashboard-action-card" routerLink="/">
-        <span>Gastronomía</span>
-        <strong>Explora opciones gastronómicas disponibles.</strong>
-      </a>
+      @if (hasActiveFood()) {
+        <a class="travel-dashboard-action-card" routerLink="/client/gastronomy">
+          <span>Gastronomía</span>
+          <strong>Explora opciones gastronómicas disponibles.</strong>
+        </a>
+      }
       @if (showContinuePayment()) {
         <a class="travel-dashboard-action-card" routerLink="/client/payments">
           <span>Continuar pago</span>
@@ -60,7 +62,7 @@
           <span class="travel-dashboard-promo-tag">{{ promo.percentage }}% de descuento</span>
           <strong>{{ promo.label }}</strong>
           <p>{{ promo.validUntil }}</p>
-          <a routerLink="/">Ver detalle</a>
+          <a routerLink="/client/tours">Ver detalle</a>
         </article>
       } @empty {
         <p class="travel-dashboard-copy">No hay descuentos vigentes en este momento.</p>
@@ -72,7 +74,7 @@
     <div class="travel-dashboard-section-head travel-dashboard-section-head-split">
       <h2>Mis reservas</h2>
       @if (activeReservation()) {
-        <a class="travel-dashboard-section-action" routerLink="/">Nueva reserva</a>
+        <a class="travel-dashboard-section-action" routerLink="/client/tours">Nueva reserva</a>
       }
     </div>
     <div class="travel-dashboard-reservation-grid">
@@ -103,7 +105,7 @@
             </div>
           </div>
           <div class="travel-dashboard-reservation-actions">
-            <a class="travel-dashboard-primary-action" routerLink="/">Crear reserva</a>
+            <a class="travel-dashboard-primary-action" routerLink="/client/tours">Crear reserva</a>
             <a class="travel-dashboard-section-action" routerLink="/client/reservations">Ver mis reservas</a>
           </div>
         </article>
@@ -114,13 +116,13 @@
   <section class="travel-dashboard-section">
     <div class="travel-dashboard-section-head"><h2>Experiencias destacadas</h2></div>
     <div class="travel-dashboard-recommendations">
-      @for (destination of destinations(); track destination.name) {
+      @for (destination of destinations(); track destination.key) {
         <article class="travel-dashboard-destination-card">
           <div class="travel-dashboard-destination-media dashboard-media-one"></div>
           <div class="travel-dashboard-destination-body">
             <strong>{{ destination.name }}</strong>
             <div class="travel-dashboard-destination-meta"><small>Desde</small><em>{{ destination.tariff }}</em></div>
-            <a routerLink="/">Ver detalle</a>
+            <a [routerLink]="['/client/tours/detail']" [queryParams]="{ tour: destination.key }">Ver detalle</a>
           </div>
         </article>
       } @empty {

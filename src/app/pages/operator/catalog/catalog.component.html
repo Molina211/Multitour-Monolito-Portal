@@ -12,6 +12,7 @@
   <article><span>HOSPEDAJE</span><strong>{{ lodgingActiveCount() }} activo{{ lodgingActiveCount() === 1 ? '' : 's' }}</strong><p>Capacidad, zonas y tarifas disponibles.</p>@if (roleService.isAdmin()) {<button type="button" routerLink="/operator/catalog/lodging">Gestionar hospedaje</button>}</article>
   <article><span>ALIMENTACIÓN</span><strong>{{ foodActiveCount() }} activo{{ foodActiveCount() === 1 ? '' : 's' }}</strong><p>Platos del día y opciones para reservas.</p>@if (roleService.isAdmin()) {<button type="button" routerLink="/operator/catalog/food">Gestionar alimentación</button>}</article>
   <article><span>TRANSPORTE</span><strong>{{ transportActiveCount() }} activo{{ transportActiveCount() === 1 ? '' : 's' }}</strong><p>Rutas, costos y capacidad controlada.</p>@if (roleService.isAdmin()) {<button type="button" routerLink="/operator/catalog/transport">Gestionar transporte</button>}</article>
+  <article><span>RESTAURANTES ASOCIADOS</span><strong>{{ restaurantsActiveCount() }} activo{{ restaurantsActiveCount() === 1 ? '' : 's' }}</strong><p>Establecimientos promocionados en Gastronomía Cliente.</p>@if (roleService.isAdmin()) {<button type="button" routerLink="/operator/catalog/restaurants">Gestionar restaurantes</button>}</article>
 </section>
 
 <section class="operator-panel">

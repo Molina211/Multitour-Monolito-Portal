@@ -23,12 +23,22 @@
             <div class="travel-dashboard-reservation-copy">
               <strong>{{ payment.experience }}</strong>
               <small>Reserva: {{ payment.code }}</small>
+              <small>Modalidad: {{ payment.method || 'Sin modalidad definida' }}</small>
+              @if (payment.paid) {
+                <small>Abonado: {{ payment.paid }} · Saldo pendiente: {{ payment.balance }}</small>
+              }
             </div>
             <div class="travel-dashboard-reservation-status">
               <span class="travel-dashboard-status-badge">{{ payment.status }}</span>
+              <span class="travel-dashboard-status-badge">{{ payment.paymentStatus || 'Sin pago' }}</span>
               <div class="travel-dashboard-reservation-values"><strong>{{ payment.budget || payment.finalValue }}</strong></div>
             </div>
           </div>
+          @if (payment.method === 'Transferencia' && payment.paymentStatus === 'Sin pago') {
+            <div class="travel-dashboard-reservation-actions">
+              <a class="travel-dashboard-primary-action" routerLink="/client/reservations/payment">Continuar pago</a>
+            </div>
+          }
         </article>
       } @empty {
         <p class="travel-dashboard-copy">Todavía no tienes pagos ni reservas registradas.</p>

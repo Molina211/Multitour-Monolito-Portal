@@ -3,6 +3,10 @@ import { RouterLink } from '@angular/router';
 import { NEW_SERVICE_CATALOG_ID_BY_TYPE, OPERATOR_CATALOG_DEFAULTS, OperatorCatalogService } from '../operator-catalog.service';
 import { OperatorRoleService } from '../operator-role.service';
 
+// Mismo catalogId ya usado por Gastronomía Cliente y por Gestionar restaurantes asociados
+// para leer el mismo estado activo/inactivo: sin crear un mecanismo paralelo.
+const ASSOCIATED_ESTABLISHMENTS_CATALOG_ID = 'associated-establishments';
+
 interface SummaryRow {
   name: string;
   type: string;
@@ -30,6 +34,16 @@ export class CatalogComponent {
   lodgingActiveCount = computed(() => this.catalogService.activeCount('hospedaje-catalog-panel'));
   foodActiveCount = computed(() => this.catalogService.activeCount('alimentacion-catalog-panel'));
   transportActiveCount = computed(() => this.catalogService.activeCount('transporte-catalog-panel'));
+  restaurantsActiveCount = computed(
+    () =>
+      this.catalogService
+        .establishments()
+        .filter(
+          (item) =>
+            item.kind === 'restaurant' &&
+            this.catalogService.isActive(ASSOCIATED_ESTABLISHMENTS_CATALOG_ID, item.id, true),
+        ).length,
+  );
 
   summaryRows = computed<SummaryRow[]>(() => {
     const rows: SummaryRow[] = [];

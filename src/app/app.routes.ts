@@ -7,6 +7,15 @@ import { AdminLoginComponent } from './pages/admin-login/admin-login.component';
 import { ClientDashboardComponent } from './pages/client/client-dashboard/client-dashboard.component';
 import { ClientReservationsComponent } from './pages/client/client-reservations/client-reservations.component';
 import { ClientPaymentsComponent } from './pages/client/client-payments/client-payments.component';
+import { ClientGastronomyComponent } from './pages/client/client-gastronomy/client-gastronomy.component';
+import { ClientRestaurantsComponent } from './pages/client/client-restaurants/client-restaurants.component';
+import { ClientGastronomyDetailComponent } from './pages/client/client-gastronomy-detail/client-gastronomy-detail.component';
+import { ClientLodgingComponent } from './pages/client/client-lodging/client-lodging.component';
+import { ClientToursComponent } from './pages/client/client-tours/client-tours.component';
+import { ClientTourDetailComponent } from './pages/client/client-tour-detail/client-tour-detail.component';
+import { ClientTourBookingComponent } from './pages/client/client-tour-booking/client-tour-booking.component';
+import { ClientReservationPaymentComponent } from './pages/client/client-reservation-payment/client-reservation-payment.component';
+import { ClientProfileComponent } from './pages/client/client-profile/client-profile.component';
 import { PlatformShellComponent } from './pages/platform/platform-shell/platform-shell.component';
 import { DashboardComponent as PlatformDashboardComponent } from './pages/platform/dashboard/dashboard.component';
 import { OperatorsComponent } from './pages/platform/operators/operators.component';
@@ -26,6 +35,7 @@ import { NewServiceComponent } from './pages/operator/new-service/new-service.co
 import { ManageCatalogComponent } from './pages/operator/manage-catalog/manage-catalog.component';
 import { ManageLodgingComponent } from './pages/operator/manage-lodging/manage-lodging.component';
 import { ManageFoodComponent } from './pages/operator/manage-food/manage-food.component';
+import { ManageRestaurantsComponent } from './pages/operator/manage-restaurants/manage-restaurants.component';
 import { ManageTransportComponent } from './pages/operator/manage-transport/manage-transport.component';
 import { ConfigureTransportComponent } from './pages/operator/configure-transport/configure-transport.component';
 import { DiscountsComponent } from './pages/operator/discounts/discounts.component';
@@ -57,7 +67,16 @@ export const routes: Routes = [
   { path: 'admin-login', component: AdminLoginComponent },
   { path: 'client', component: ClientDashboardComponent },
   { path: 'client/reservations', component: ClientReservationsComponent },
+  { path: 'client/reservations/payment', component: ClientReservationPaymentComponent },
   { path: 'client/payments', component: ClientPaymentsComponent },
+  { path: 'client/tours', component: ClientToursComponent },
+  { path: 'client/tours/detail', component: ClientTourDetailComponent },
+  { path: 'client/tours/booking', component: ClientTourBookingComponent },
+  { path: 'client/gastronomy', component: ClientGastronomyComponent },
+  { path: 'client/gastronomy/restaurants', component: ClientRestaurantsComponent },
+  { path: 'client/gastronomy/detail', component: ClientGastronomyDetailComponent },
+  { path: 'client/lodging', component: ClientLodgingComponent },
+  { path: 'client/profile', component: ClientProfileComponent },
   {
     path: 'platform',
     component: PlatformShellComponent,
@@ -99,6 +118,7 @@ export const routes: Routes = [
       { path: 'catalog/tours', component: ManageCatalogComponent },
       { path: 'catalog/lodging', component: ManageLodgingComponent },
       { path: 'catalog/food', component: ManageFoodComponent },
+      { path: 'catalog/restaurants', component: ManageRestaurantsComponent },
       { path: 'catalog/transport', component: ManageTransportComponent },
       { path: 'catalog/transport/configure', component: ConfigureTransportComponent },
       {

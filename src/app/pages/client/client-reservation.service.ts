@@ -5,6 +5,18 @@ import { Injectable, signal } from '@angular/core';
 export const CLIENT_RESERVATION_STATES = ['Pendiente de pago', 'Confirmada', 'En ejecución', 'Finalizada', 'Cancelada'] as const;
 export type ClientReservationStatus = (typeof CLIENT_RESERVATION_STATES)[number];
 
+export interface CompanionRecord {
+  name: string;
+  document: string;
+  birthDate: string;
+}
+
+// Estado economico (PDR 03-product/prd.md, lineas 981-1001): dimension distinta del estado
+// general de la reserva (CLIENT_RESERVATION_STATES). Vocabulario tomado directamente del
+// PDR, nunca un estado inventado.
+export const CLIENT_PAYMENT_STATES = ['Sin pago', 'En validación', 'Parcial', 'Pagado', 'Rechazado'] as const;
+export type ClientPaymentStatus = (typeof CLIENT_PAYMENT_STATES)[number];
+
 export interface ClientReservation {
   code: string;
   experience: string;
@@ -18,6 +30,20 @@ export interface ClientReservation {
   finalValue?: string;
   tourKey?: string;
   savedAt?: string;
+  // PDR RF-001/RN-RES-005: titular y acompañantes individualizados, campos ya respaldados
+  // por el modelo (mismos que usa el Administrador en Crear reserva).
+  holderDocument?: string;
+  companions?: CompanionRecord[];
+  // Servicio relacionado real (RN-TRA-001/002), cuando el Tour tiene transporte asociado.
+  transportSelected?: string;
+  // Modalidad de pago elegida (Fase 1: Transferencia, Efectivo o Abono).
+  method?: string;
+  // Estado economico (ver CLIENT_PAYMENT_STATES). No confunde con "status" (estado general).
+  paymentStatus?: ClientPaymentStatus | string;
+  // Abono (RF-015A): monto abonado, saldo pendiente y trazabilidad basica.
+  paid?: string;
+  balance?: string;
+  paymentHistory?: { amount: number; date: string }[];
 }
 
 // Misma clave ya usada como "reserva activa/mas reciente" en la landing aprobada
@@ -64,6 +90,13 @@ export class ClientReservationService {
     if (!booking) return null;
     const status = normalizeClientReservationStatus(booking.status);
     return status === 'Finalizada' || status === 'Cancelada' ? null : booking;
+  }
+
+  // "Ultima reserva" (Mi perfil -> Resumen): la reserva mas reciente sin importar su
+  // estado (a diferencia de activeReservation, que excluye Finalizada/Cancelada). Misma
+  // fuente ya usada como "reserva activa/mas reciente" en la landing aprobada.
+  mostRecent(): ClientReservation | null {
+    return this.currentBookingSignal();
   }
 
   recordReservation(booking: ClientReservation): void {

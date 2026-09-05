@@ -1,0 +1,76 @@
+<main class="travel-tours-shell">
+  <header class="travel-tours-header">
+    <a class="travel-tours-brand" routerLink="/">{{ tenantName() }}</a>
+    <nav class="travel-tours-nav" aria-label="Navegación principal del cliente">
+      <a routerLink="/client/tours">Explorar</a>
+      <a routerLink="/client/lodging">Alojamiento</a>
+      <a class="is-active" routerLink="/client/gastronomy">Gastronomía</a>
+      <a routerLink="/client">Reservas</a>
+      <a routerLink="/client/profile">Perfil</a>
+    </nav>
+  </header>
+
+  <section class="travel-tours-topbar">
+    <a class="travel-tours-back" routerLink="/client">
+      <span aria-hidden="true">&larr;</span>
+      <span>Volver al panel cliente</span>
+    </a>
+
+    <div class="travel-tours-search-row">
+      <input type="search" placeholder="Buscar restaurantes o platos..." [value]="searchTerm()" (input)="onSearchInput($event)" />
+      <button type="button" (click)="onSearchInput($event)">Buscar</button>
+    </div>
+
+    <div class="travel-catalog-filter-row" aria-label="Filtros de gastronomía">
+      <a [class.is-active]="activeFilter() === 'all'" routerLink="/client/gastronomy">Todos</a>
+      <a routerLink="/client/gastronomy/restaurants">Restaurantes</a>
+      <a [class.is-active]="activeFilter() === 'food'" routerLink="/client/gastronomy" [queryParams]="{ filter: 'food' }">Platos del día</a>
+    </div>
+  </section>
+
+  <section class="travel-tours-grid" id="platos-del-dia" aria-label="Catálogo de gastronomía disponible">
+    @for (item of filteredItems(); track item.key) {
+      <article class="travel-tour-card">
+        <div class="travel-tour-media" [class.restaurant-media-three]="item.type === 'food'" [class.restaurant-media-one]="item.type === 'restaurant'">
+          @if (item.image) {
+            <img class="gastronomy-card-image" [src]="item.image" alt="Imagen de {{ item.name }}" />
+          }
+        </div>
+        <div class="travel-tour-body">
+          <strong>{{ item.name }}</strong>
+          @if (item.type === 'food') {
+            <span class="travel-tour-location">{{ item.restaurant ? 'Restaurante asociado: ' + item.restaurant : 'Alimentación' }}</span>
+            <div class="travel-catalog-tags">
+              <span>Alimentación</span>
+              @if (item.validity) {
+                <span>Vigente: {{ item.validity }}</span>
+              }
+            </div>
+            <div class="travel-tour-meta">
+              <div><small>Tarifa</small><em>{{ item.tariff }}</em></div>
+              <a class="travel-tour-detail-link" href="#platos-del-dia">Ver detalles</a>
+            </div>
+          } @else {
+            <span class="travel-tour-location">Restaurante asociado</span>
+            <div class="travel-tour-meta">
+              <div></div>
+              <a class="travel-tour-detail-link" [routerLink]="['/client/gastronomy/detail']" [queryParams]="{ id: item.restaurantId, source: 'gastronomy' }">Ver detalles</a>
+            </div>
+          }
+        </div>
+      </article>
+    } @empty {
+      @if (!hasAnyData()) {
+        <p class="travel-dashboard-copy">{{ activeFilter() === 'food' ? 'No hay opciones de alimentación disponibles en este momento.' : 'No hay opciones disponibles en este momento.' }}</p>
+      }
+    }
+  </section>
+
+  @if (showSearchEmpty()) {
+    <div class="travel-catalog-empty-state">
+      <strong>No encontramos resultados con esa búsqueda.</strong>
+      <p>Prueba con otra búsqueda.</p>
+      <button type="button" (click)="clearSearch()">Limpiar búsqueda</button>
+    </div>
+  }
+</main>

@@ -22,7 +22,12 @@ export class PaymentsComponent {
   // rol (deshabilitado por defecto en este entorno local).
   canValidateSupport = computed(() => this.roleService.isAdmin() || this.roleService.collaboratorCanValidateSupport());
 
+  // BUG corregido: para seguimiento (Abono), getPendingSupportRecords() ya filtra las
+  // reservas liquidadas (saldo $0, Pagado); toda fila de seguimiento que llega aqui es, por
+  // definicion, un pago real todavia pendiente, sin depender del texto de "status" (que
+  // puede coincidir por casualidad con un estado "resuelto" generico como "Parcial").
   isPending(record: PendingSupportRecord): boolean {
+    if (record.action === 'follow-up') return true;
     return this.reservationService.isPendingSupport(record);
   }
 }

@@ -29,35 +29,40 @@
     </div>
   </section>
 
-  <section class="travel-restaurant-grid" aria-label="Catalogo de restaurantes">
-    @for (restaurant of filteredRestaurants(); track restaurant.id) {
-      <article class="travel-tour-card">
-        <div class="travel-tour-media restaurant-media-one">
-          @if (restaurant.image) {
-            <img class="gastronomy-card-image" [src]="restaurant.image" alt="Imagen de {{ restaurant.name }}" />
-          }
-        </div>
-        <div class="travel-tour-body">
-          <strong>{{ restaurant.name }}</strong>
-          <span class="travel-tour-location">Restaurante asociado</span>
-          <div class="travel-tour-meta">
-            <div></div>
-            <a class="travel-tour-detail-link" [routerLink]="['/client/gastronomy/detail']" [queryParams]="{ id: restaurant.id, source: 'restaurants' }">Ver detalles</a>
-          </div>
-        </div>
-      </article>
-    } @empty {
-      @if (restaurants().length === 0) {
-        <p class="travel-dashboard-copy">No hay restaurantes asociados activos en este momento.</p>
-      }
-    }
-  </section>
-
-  @if (showSearchEmpty()) {
+  @if (loading()) {
+    <p class="travel-dashboard-copy">Cargando restaurantes...</p>
+  } @else if (loadError()) {
     <div class="travel-catalog-empty-state">
-      <strong>No encontramos resultados con esa búsqueda.</strong>
-      <p>Prueba con otra búsqueda.</p>
-      <button type="button" (click)="clearSearch()">Limpiar búsqueda</button>
+      <strong>No fue posible cargar los restaurantes asociados.</strong>
+      <p>Intenta nuevamente más tarde.</p>
     </div>
+  } @else {
+    <section class="travel-restaurant-grid" aria-label="Catalogo de restaurantes">
+      @for (restaurant of filteredRestaurants(); track restaurant.id) {
+        <article class="travel-tour-card">
+          <div class="travel-tour-media restaurant-media-one">
+            @if (restaurant.image) {
+              <img class="gastronomy-card-image" [src]="restaurant.image" alt="Imagen de {{ restaurant.name }}" />
+            }
+          </div>
+          <div class="travel-tour-body">
+            <strong>{{ restaurant.name }}</strong>
+            <span class="travel-tour-location">Restaurante asociado</span>
+          </div>
+        </article>
+      } @empty {
+        @if (restaurants().length === 0) {
+          <p class="travel-dashboard-copy">No hay restaurantes asociados activos en este momento.</p>
+        }
+      }
+    </section>
+
+    @if (showSearchEmpty()) {
+      <div class="travel-catalog-empty-state">
+        <strong>No encontramos resultados con esa búsqueda.</strong>
+        <p>Prueba con otra búsqueda.</p>
+        <button type="button" (click)="clearSearch()">Limpiar búsqueda</button>
+      </div>
+    }
   }
 </main>

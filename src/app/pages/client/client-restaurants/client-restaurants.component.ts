@@ -1,10 +1,13 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AssociatedEstablishment, OperatorCatalogService } from '../../operator/operator-catalog.service';
+import { EstablishmentApiService } from '../../../core/establishment-api.service';
+import { CURRENT_TENANT_ID } from '../../../core/tenant.constants';
 
-// Mismo catalogId ya usado en Landing (app.js: OPERATOR_ASSOCIATED_ESTABLISHMENTS_CATALOG_ID)
-// para el mapa generico de activo/inactivo (isActive), sin crear un mecanismo paralelo.
-const ASSOCIATED_ESTABLISHMENTS_CATALOG_ID = 'associated-establishments';
+interface RestaurantCard {
+  id: string;
+  name: string;
+  image: string | null;
+}
 
 @Component({
   selector: 'app-client-restaurants',
@@ -13,25 +16,40 @@ const ASSOCIATED_ESTABLISHMENTS_CATALOG_ID = 'associated-establishments';
   templateUrl: './client-restaurants.component.html',
   styleUrl: './client-restaurants.component.css',
 })
-export class ClientRestaurantsComponent {
-  private readonly catalogService = inject(OperatorCatalogService);
+export class ClientRestaurantsComponent implements OnInit {
+  private readonly establishmentApi = inject(EstablishmentApiService);
 
   tenantName = computed(() => '[Tu Marca]');
 
-  // Restaurantes asociados del tenant actual: misma fuente real (establishments) ya usada
-  // por el formulario "Nuevo servicio" del Administrador. Nunca datos globales hardcodeados.
-  restaurants = computed<AssociatedEstablishment[]>(() =>
-    this.catalogService
-      .establishments()
-      .filter(
-        (item) =>
-          item.kind === 'restaurant' &&
-          this.catalogService.isActive(ASSOCIATED_ESTABLISHMENTS_CATALOG_ID, item.id, true),
-      ),
-  );
+  private readonly restaurantsSignal = signal<RestaurantCard[]>([]);
+  private readonly loadingSignal = signal(true);
+  private readonly loadErrorSignal = signal(false);
 
-  // Buscador ("Buscar restaurantes..."): mismo comportamiento ya aprobado en Landing
-  // (setupCatalogSearch) — filtra por nombre sobre los restaurantes reales ya visibles.
+  loading = this.loadingSignal.asReadonly();
+  loadError = this.loadErrorSignal.asReadonly();
+
+  // Restaurantes asociados del tenant actual desde el Backend real
+  // (GET /api/tenants/{tenantId}/establishments, kind=RESTAURANT). RN-ASO-001: solo la
+  // entidad comercial (nombre/descripcion/imagen), nunca habitaciones, platos ni cupos.
+  restaurants = computed<RestaurantCard[]>(() => this.restaurantsSignal());
+
+  ngOnInit(): void {
+    this.establishmentApi.listByTenant(CURRENT_TENANT_ID).subscribe({
+      next: (items) => {
+        this.restaurantsSignal.set(
+          items
+            .filter((item) => item.kind === 'RESTAURANT' && item.active)
+            .map((item) => ({ id: item.establishmentId, name: item.name, image: item.image })),
+        );
+        this.loadingSignal.set(false);
+      },
+      error: () => {
+        this.loadErrorSignal.set(true);
+        this.loadingSignal.set(false);
+      },
+    });
+  }
+
   private readonly searchTermSignal = signal('');
   readonly searchTerm = this.searchTermSignal.asReadonly();
   private readonly diacriticsPattern = new RegExp('[' + String.fromCharCode(0x0300) + '-' + String.fromCharCode(0x036f) + ']', 'g');

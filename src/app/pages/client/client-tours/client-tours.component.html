@@ -22,41 +22,44 @@
     </div>
   </section>
 
-  <section class="travel-tours-grid" aria-label="Listado de tours disponibles">
-    @for (tour of filteredTours(); track tour.key) {
-      <article class="travel-tour-card">
-        <div class="travel-tour-media tour-media-one">
-          @if (tour.discount) {
-            <span class="travel-tour-discount-tag">{{ (tour.discount * 100) | number: '1.0-0' }}% de descuento</span>
-          }
-          @if (tour.image) {
-            <img class="gastronomy-card-image" [src]="tour.image" alt="Imagen de {{ tour.name }}" />
-          }
-        </div>
-        <div class="travel-tour-body">
-          <strong>{{ tour.name }}</strong>
-          <div class="travel-tour-meta">
-            <div class="travel-tour-price">
-              @if (tour.discount) {
-                <small class="travel-tour-price-before">Antes: <del>${{ tour.price | number: '1.0-0' }}</del></small>
-              }
-              <small>Desde</small>
-              <em>${{ finalPrice(tour) | number: '1.0-0' }}</em>
-            </div>
-            <a class="travel-tour-detail-link" [routerLink]="['/client/tours/detail']" [queryParams]="{ tour: tour.key }">Ver detalle</a>
-          </div>
-        </div>
-      </article>
-    } @empty {
-      <p class="travel-dashboard-copy">No hay tours disponibles en este momento.</p>
-    }
-  </section>
-
-  @if (showSearchEmpty()) {
+  @if (loading()) {
+    <p class="travel-dashboard-copy">Cargando tours...</p>
+  } @else if (loadError()) {
     <div class="travel-catalog-empty-state">
-      <strong>No encontramos resultados con esa búsqueda.</strong>
-      <p>Prueba con otra búsqueda.</p>
-      <button type="button" (click)="clearSearch()">Limpiar búsqueda</button>
+      <strong>No fue posible cargar el catálogo de tours.</strong>
+      <p>Intenta nuevamente más tarde.</p>
     </div>
+  } @else {
+    <section class="travel-tours-grid" aria-label="Listado de tours disponibles">
+      @for (tour of filteredTours(); track tour.id) {
+        <article class="travel-tour-card">
+          <div class="travel-tour-media tour-media-one">
+            @if (tour.image) {
+              <img class="gastronomy-card-image" [src]="tour.image" alt="Imagen de {{ tour.name }}" />
+            }
+          </div>
+          <div class="travel-tour-body">
+            <strong>{{ tour.name }}</strong>
+            <div class="travel-tour-meta">
+              <div class="travel-tour-price">
+                <small>Desde</small>
+                <em>${{ tour.price | number: '1.0-0' }}</em>
+              </div>
+              <a class="travel-tour-detail-link" [routerLink]="['/client/tours/detail']" [queryParams]="{ id: tour.id }">Ver detalle</a>
+            </div>
+          </div>
+        </article>
+      } @empty {
+        <p class="travel-dashboard-copy">No hay tours disponibles en este momento.</p>
+      }
+    </section>
+
+    @if (showSearchEmpty()) {
+      <div class="travel-catalog-empty-state">
+        <strong>No encontramos resultados con esa búsqueda.</strong>
+        <p>Prueba con otra búsqueda.</p>
+        <button type="button" (click)="clearSearch()">Limpiar búsqueda</button>
+      </div>
+    }
   }
 </main>

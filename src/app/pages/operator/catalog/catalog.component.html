@@ -7,6 +7,9 @@
   }
 </section>
 
+@if (countsLoadError()) {
+  <p class="travel-dashboard-copy">No fue posible cargar los conteos reales del catálogo. Intenta nuevamente más tarde.</p>
+}
 <section class="operator-catalog-grid">
   <article><span>TOURS Y ATRACTIVOS</span><strong>{{ toursActiveCount() }} activos</strong><p>Rutas, salidas, tarifas y políticas de cupo.</p>@if (roleService.isAdmin()) {<button type="button" routerLink="/operator/catalog/tours">Gestionar catálogo</button>}</article>
   <article><span>HOSPEDAJE</span><strong>{{ lodgingActiveCount() }} activo{{ lodgingActiveCount() === 1 ? '' : 's' }}</strong><p>Capacidad, zonas y tarifas disponibles.</p>@if (roleService.isAdmin()) {<button type="button" routerLink="/operator/catalog/lodging">Gestionar hospedaje</button>}</article>

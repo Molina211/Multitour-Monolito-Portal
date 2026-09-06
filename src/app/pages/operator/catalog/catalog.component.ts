@@ -1,11 +1,11 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { NEW_SERVICE_CATALOG_ID_BY_TYPE, OPERATOR_CATALOG_DEFAULTS, OperatorCatalogService } from '../operator-catalog.service';
 import { OperatorRoleService } from '../operator-role.service';
-
-// Mismo catalogId ya usado por Gastronomía Cliente y por Gestionar restaurantes asociados
-// para leer el mismo estado activo/inactivo: sin crear un mecanismo paralelo.
-const ASSOCIATED_ESTABLISHMENTS_CATALOG_ID = 'associated-establishments';
+import { CatalogApiService } from '../../../core/catalog-api.service';
+import { EstablishmentApiService } from '../../../core/establishment-api.service';
+import { CURRENT_TENANT_ID } from '../../../core/tenant.constants';
 
 interface SummaryRow {
   name: string;
@@ -26,24 +26,47 @@ interface SummaryRow {
   templateUrl: './catalog.component.html',
   styleUrl: './catalog.component.css',
 })
-export class CatalogComponent {
+export class CatalogComponent implements OnInit {
   private readonly catalogService = inject(OperatorCatalogService);
+  private readonly catalogApi = inject(CatalogApiService);
+  private readonly establishmentApi = inject(EstablishmentApiService);
   readonly roleService = inject(OperatorRoleService);
 
-  toursActiveCount = computed(() => this.catalogService.activeCount('catalogo-catalog-panel'));
-  lodgingActiveCount = computed(() => this.catalogService.activeCount('hospedaje-catalog-panel'));
-  foodActiveCount = computed(() => this.catalogService.activeCount('alimentacion-catalog-panel'));
-  transportActiveCount = computed(() => this.catalogService.activeCount('transporte-catalog-panel'));
-  restaurantsActiveCount = computed(
-    () =>
-      this.catalogService
-        .establishments()
-        .filter(
-          (item) =>
-            item.kind === 'restaurant' &&
-            this.catalogService.isActive(ASSOCIATED_ESTABLISHMENTS_CATALOG_ID, item.id, true),
-        ).length,
-  );
+  // Conteos superiores (tarjetas resumen): datos REALES del Backend
+  // (GET /api/tenants/{tenantId}/catalog-items y /establishments). La tabla de detalle
+  // mas abajo y las pantallas "Gestionar <categoria>" siguen usando el catalogo mock:
+  // su migracion a la API real queda fuera de alcance de este bloque (Catálogo +
+  // Establecimientos de lectura), reportado explicitamente, no resuelto aqui.
+  private readonly toursActiveCountSignal = signal(0);
+  private readonly lodgingActiveCountSignal = signal(0);
+  private readonly foodActiveCountSignal = signal(0);
+  private readonly transportActiveCountSignal = signal(0);
+  private readonly restaurantsActiveCountSignal = signal(0);
+  private readonly countsLoadErrorSignal = signal(false);
+
+  toursActiveCount = this.toursActiveCountSignal.asReadonly();
+  lodgingActiveCount = this.lodgingActiveCountSignal.asReadonly();
+  foodActiveCount = this.foodActiveCountSignal.asReadonly();
+  transportActiveCount = this.transportActiveCountSignal.asReadonly();
+  restaurantsActiveCount = this.restaurantsActiveCountSignal.asReadonly();
+  countsLoadError = this.countsLoadErrorSignal.asReadonly();
+
+  ngOnInit(): void {
+    forkJoin({
+      catalog: this.catalogApi.listByTenant(CURRENT_TENANT_ID),
+      establishments: this.establishmentApi.listByTenant(CURRENT_TENANT_ID),
+    }).subscribe({
+      next: ({ catalog, establishments }) => {
+        const activeByType = (type: string) => catalog.filter((item) => item.type === type && item.active).length;
+        this.toursActiveCountSignal.set(activeByType('TOUR'));
+        this.lodgingActiveCountSignal.set(activeByType('LODGING'));
+        this.foodActiveCountSignal.set(activeByType('FOOD'));
+        this.transportActiveCountSignal.set(activeByType('TRANSPORT'));
+        this.restaurantsActiveCountSignal.set(establishments.filter((item) => item.kind === 'RESTAURANT' && item.active).length);
+      },
+      error: () => this.countsLoadErrorSignal.set(true),
+    });
+  }
 
   summaryRows = computed<SummaryRow[]>(() => {
     const rows: SummaryRow[] = [];

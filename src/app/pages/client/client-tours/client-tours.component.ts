@@ -1,14 +1,26 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { ClientTourCatalogService } from '../client-tour-catalog.service';
+import { CatalogApiService, CatalogItemResponse } from '../../../core/catalog-api.service';
+import { CURRENT_TENANT_ID } from '../../../core/tenant.constants';
 
 interface TourCard {
-  key: string;
+  id: string;
   name: string;
   price: number;
-  discount: number;
-  image: string;
+  capacity: number | null;
+  image: string | null;
+}
+
+// Misma referencia horaria ya usada en el resto del Portal (America/Bogota).
+function getTenantToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+
+function isVigente(item: CatalogItemResponse, today: string): boolean {
+  if (item.validFrom && item.validFrom > today) return false;
+  if (item.validTo && item.validTo < today) return false;
+  return true;
 }
 
 @Component({
@@ -18,22 +30,46 @@ interface TourCard {
   templateUrl: './client-tours.component.html',
   styleUrl: './client-tours.component.css',
 })
-export class ClientToursComponent {
-  private readonly tourCatalogService = inject(ClientTourCatalogService);
+export class ClientToursComponent implements OnInit {
+  private readonly catalogApi = inject(CatalogApiService);
 
   tenantName = computed(() => '[Tu Marca]');
 
-  // Catalogo REAL de Tours (activo + vigente): mismo usado en Detalle del tour y Reservar.
-  // Nunca tarjetas hardcodeadas ni caracteristicas turisticas inventadas.
-  tours = computed<TourCard[]>(() =>
-    Object.values(this.tourCatalogService.getActiveTourServices()).map((tour) => ({
-      key: tour.key,
-      name: tour.name,
-      price: tour.price,
-      discount: tour.discount,
-      image: tour.image,
-    })),
-  );
+  private readonly toursSignal = signal<TourCard[]>([]);
+  private readonly loadingSignal = signal(true);
+  private readonly loadErrorSignal = signal(false);
+
+  loading = this.loadingSignal.asReadonly();
+  loadError = this.loadErrorSignal.asReadonly();
+
+  // Catalogo REAL de Tours desde el Backend (GET /api/tenants/{tenantId}/catalog-items),
+  // filtrado a type=TOUR, activo y vigente (validFrom/validTo). Nunca tarjetas
+  // hardcodeadas ni caracteristicas turisticas inventadas.
+  tours = computed<TourCard[]>(() => this.toursSignal());
+
+  ngOnInit(): void {
+    const today = getTenantToday();
+    this.catalogApi.listByTenant(CURRENT_TENANT_ID).subscribe({
+      next: (items) => {
+        this.toursSignal.set(
+          items
+            .filter((item) => item.type === 'TOUR' && item.active && isVigente(item, today))
+            .map((item) => ({
+              id: item.catalogItemId,
+              name: item.name,
+              price: Number(item.price),
+              capacity: item.capacity,
+              image: item.image,
+            })),
+        );
+        this.loadingSignal.set(false);
+      },
+      error: () => {
+        this.loadErrorSignal.set(true);
+        this.loadingSignal.set(false);
+      },
+    });
+  }
 
   private readonly searchTermSignal = signal('');
   readonly searchTerm = this.searchTermSignal.asReadonly();
@@ -54,10 +90,6 @@ export class ClientToursComponent {
   showSearchEmpty = computed(
     () => this.searchTermSignal().trim().length > 0 && this.tours().length > 0 && this.filteredTours().length === 0,
   );
-
-  finalPrice(tour: TourCard): number {
-    return tour.price * (1 - tour.discount);
-  }
 
   onSearchInput(event: Event): void {
     this.searchTermSignal.set((event.target as HTMLInputElement).value);

@@ -1,0 +1,93 @@
+<header class="operator-topbar"><div><p class="operator-eyebrow">Catálogo operativo</p><h1>Nuevo servicio</h1></div><a class="operator-outline" routerLink="/operator/catalog">Volver a catálogos</a></header>
+
+<form class="operator-reservation-form" (submit)="onSubmit($event)" novalidate>
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Información comercial</p><h2>Producto disponible para el cliente</h2>
+    <div class="operator-form-grid">
+      <label class="operator-form-wide">¿Qué quieres crear?
+        <select name="kind" (change)="onKindChange($any($event.target).value)">
+          <option value="operational">Servicio operativo (Tour, Hospedaje, Alimentación o Transporte)</option>
+          <option value="establishment">Establecimiento asociado (Hotel o Restaurante externo)</option>
+        </select>
+      </label>
+      <label>Nombre comercial<input name="name" required type="text" placeholder="Nombre del producto" /></label>
+      @if (kind() === 'operational') {
+        <label>Tipo
+          <select name="type" required [value]="operationalType()" (change)="onOperationalTypeChange($any($event.target).value)">
+            <option value="tour">Tour o actividad</option>
+            <option value="lodging">Hospedaje</option>
+            <option value="food">Alimentación</option>
+            <option value="transport">Transporte</option>
+          </select>
+        </label>
+        @if (operationalType() === 'transport') {
+          <label>Trayecto (origen - destino o descripción)<input name="route" type="text" placeholder="Por configurar" /></label>
+        }
+        @if (operationalType() === 'tour') {
+          <label>¿Incluye transporte?
+            <select [value]="includesTransport()" (change)="onIncludesTransportChange($any($event.target).value)">
+              <option value="no">No</option>
+              <option value="si">Sí</option>
+            </select>
+          </label>
+          @if (includesTransport() === 'si') {
+            <p class="operator-eyebrow operator-form-wide">TRANSPORTE ASOCIADO</p>
+            <label>Transporte asociado
+              <select [value]="selectedTransportKey()" (change)="onTransportSelected($any($event.target).value)">
+                <option value="">Selecciona un transporte activo</option>
+                @for (option of activeTransportOptions(); track option.key) {
+                  <option [value]="option.key">{{ option.name }}</option>
+                }
+              </select>
+            </label>
+            @if (activeTransportOptions().length === 0) {
+              <p class="operator-form-feedback operator-form-wide">No hay transportes activos disponibles. Crea o activa uno en Gestionar transporte antes de asociarlo a este Tour.</p>
+            }
+            @if (selectedTransportOption()) {
+              <p class="operator-eyebrow operator-form-wide">CONFIGURACIÓN DEL TRANSPORTE</p>
+              <p class="operator-copy operator-form-wide">Si el transporte ya tiene datos, se precargan aquí; si no, complétalos directamente. Se guardan sobre el mismo recurso de Transporte, salvo la tarifa por persona, que queda propia de este Tour (RN-TRA-002).</p>
+              <label>Trayecto<input type="text" placeholder="Por configurar" [value]="transportRouteInput()" (input)="transportRouteInput.set($any($event.target).value)" /></label>
+              <label>Tarifa por persona (para este Tour)<input type="number" min="1" inputmode="numeric" placeholder="Por configurar" [value]="transportTariffInput()" (input)="transportTariffInput.set($any($event.target).value)" /></label>
+              <label>Capacidad del transporte<input type="number" min="1" inputmode="numeric" placeholder="Por configurar" [value]="transportCapacityInput()" (input)="transportCapacityInput.set($any($event.target).value)" /></label>
+              <label>Costo base (interno, no se cobra al cliente)<input type="number" min="1" inputmode="numeric" placeholder="Por configurar" [value]="transportCostInput()" (input)="transportCostInput.set($any($event.target).value)" /></label>
+              <div class="operator-form-wide operator-detail-list">
+                <div><span>Capacidad del Tour</span><strong>{{ tourCapacityInput() || 'Por configurar' }}</strong></div>
+                <div><span>Capacidad del Transporte</span><strong>{{ transportCapacityInput() || 'Por configurar' }}</strong></div>
+              </div>
+              <p class="operator-form-feedback operator-form-wide">Capacidad Tour ≠ Capacidad Transporte: son independientes, ninguna se copia sobre la otra. La reserva valida ambas cuando corresponda.</p>
+            }
+          }
+        }
+        <label>Tarifa base<input name="price" required type="number" min="1" inputmode="numeric" /></label>
+        <label>Política de cupo
+          <select name="policy" required>
+            <option>Confirmación directa solo con pago válido</option>
+            <option>Apartamiento temporal</option>
+            <option>Sin apartamiento previo</option>
+          </select>
+        </label>
+        <label>Vigencia desde<input name="start" required type="date" /></label>
+        <label>Vigencia hasta<input name="end" required type="date" /></label>
+        <label>Capacidad / cupo<input name="capacity" type="number" min="1" inputmode="numeric" placeholder="Opcional" (input)="tourCapacityInput.set($any($event.target).value)" /></label>
+        <label>Restricciones operativas<textarea name="restrictions" placeholder="Opcional: condiciones que limitan la disponibilidad"></textarea></label>
+      } @else {
+        <label>Tipo de establecimiento
+          <select name="establishmentType" (change)="onEstablishmentTypeChange($any($event.target).value)">
+            <option value="hotel">Hotel asociado</option>
+            <option value="restaurant">Restaurante asociado</option>
+          </select>
+        </label>
+        <label class="operator-form-wide">Información comercial básica<textarea name="establishmentInfo" placeholder="Opcional: dirección, contacto u observaciones de la asociación"></textarea></label>
+      }
+      <label class="operator-form-wide">{{ imageLabel() }}<input name="image" required type="file" accept="image/*" (change)="onImageChange($event)" /></label>
+      @if (previewReady()) {
+        <img [src]="previewSrc()" alt="Vista previa del producto" style="max-width:280px;border-radius:12px" />
+      }
+    </div>
+  </section>
+  <p class="operator-form-feedback">{{ feedback() }}</p>
+  <div class="operator-form-actions">
+    <a class="operator-outline" routerLink="/operator/catalog">Cancelar</a>
+    <button class="operator-primary" type="submit" [disabled]="submitting()">{{ submitting() ? 'Publicando...' : 'Guardar y publicar' }}</button>
+  </div>
+</form>

@@ -1,0 +1,65 @@
+<main class="travel-booking-page travel-transfer-page">
+  <header class="travel-profile-topbar">
+    <a class="travel-tours-back" routerLink="/client/reservations">
+      <span aria-hidden="true">&larr;</span>
+      <span>Volver a mis reservas</span>
+    </a>
+    <h1>Instrucciones de pago</h1>
+    <div class="travel-profile-topbar-spacer"></div>
+  </header>
+
+  @if (reservation(); as booking) {
+    @if (booking.method !== 'Transferencia') {
+      <section class="travel-checkout-content">
+        <p class="travel-dashboard-copy">Esta reserva no requiere instrucciones de transferencia.</p>
+      </section>
+    } @else {
+    <section class="travel-checkout-content">
+      <div class="travel-transfer-heading"><h2>Pago por transferencia</h2></div>
+
+      <article class="travel-transfer-alert">
+        <strong>Reserva pendiente</strong>
+        <p>Tu reserva está pendiente. Realiza la transferencia bancaria y sube el comprobante para que el equipo del operador valide el pago.</p>
+      </article>
+
+      <article class="travel-booking-card travel-transfer-total-card">
+        <span>Total a pagar</span>
+        <strong>{{ booking.finalValue || booking.budget }}</strong>
+      </article>
+
+      <article class="travel-booking-card">
+        <div class="travel-checkout-section-title"><h2>Datos bancarios</h2></div>
+        <div class="travel-transfer-bank-grid">
+          <div><span>Banco</span><strong>{{ bankAccount.bank }}</strong></div>
+          <div><span>Tipo de cuenta</span><strong>{{ bankAccount.accountType }}</strong></div>
+          <div class="travel-transfer-account-row"><span>Numero de cuenta</span><strong>{{ bankAccount.accountNumber }}</strong></div>
+          <div><span>Titular</span><strong>{{ bankAccount.holder }}</strong></div>
+          <div><span>NIT</span><strong>{{ bankAccount.taxId }}</strong></div>
+        </div>
+      </article>
+
+      <article class="travel-booking-card travel-transfer-reference-card">
+        <div class="travel-checkout-section-title"><h2>Referencia de pago</h2></div>
+        <p class="travel-transfer-reference-copy">Incluye este código en la descripción de la transferencia para identificar tu pago.</p>
+        <div class="travel-transfer-reference-pill"><strong>{{ booking.code }}</strong></div>
+      </article>
+
+      <article class="travel-booking-card">
+        <div class="travel-checkout-section-title"><h2>Referencia del comprobante</h2></div>
+        <input type="text" placeholder="Ej. numero de comprobante o transaccion" [value]="supportReference()" (input)="supportReference.set($any($event.target).value)" />
+      </article>
+
+      <p class="feedback" [class.is-error]="feedbackIsError()" aria-live="polite">{{ feedback() }}</p>
+
+      <div class="travel-payment-success-actions">
+        <button type="button" class="travel-booking-continue" [disabled]="submitting()" (click)="uploadSupport()">{{ submitting() ? 'Enviando...' : 'Subir comprobante' }}</button>
+        <a class="travel-payment-secondary" routerLink="/client/reservations">Volver a mis reservas</a>
+      </div>
+    </section>
+    }
+  } @else {
+    <section class="travel-checkout-content">
+      <p class="travel-dashboard-copy">No hay una reserva pendiente de transferencia.</p>
+    </section>
+  }
+</main>

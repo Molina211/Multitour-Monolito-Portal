@@ -1,0 +1,56 @@
+<main class="travel-detail-shell">
+  <header class="travel-tours-header">
+    <a class="travel-tours-brand" routerLink="/">{{ tenantName() }}</a>
+    <nav class="travel-tours-nav" aria-label="Navegación principal del cliente">
+      <a routerLink="/client/tours">Explorar</a>
+      <a routerLink="/client/lodging">Alojamiento</a>
+      <a class="is-active" routerLink="/client/gastronomy">Gastronomía</a>
+      <a routerLink="/client">Reservas</a>
+      <a routerLink="/client/profile">Perfil</a>
+    </nav>
+  </header>
+
+  <section class="travel-detail-topbar">
+    <a class="travel-tours-back" [routerLink]="backHref">
+      <span aria-hidden="true">&larr;</span>
+      <span>{{ backLabel }}</span>
+    </a>
+    <p class="travel-detail-screen-title">Restaurante asociado</p>
+  </section>
+
+  @if (establishment(); as item) {
+    <section class="travel-detail-gallery" aria-label="Galeria del lugar">
+      <div class="travel-detail-gallery-main gastronomy-detail-gallery-main">
+        @if (item.image) {
+          <img [src]="item.image" alt="Imagen del restaurante" class="gastronomy-detail-image" />
+        }
+      </div>
+    </section>
+
+    <section class="travel-detail-intro">
+      <div class="travel-detail-copy">
+        <div class="travel-detail-copy-head">
+          <div>
+            <h1>{{ item.name }}</h1>
+            <p>Restaurante asociado</p>
+          </div>
+        </div>
+        <div class="travel-detail-description">{{ item.description || 'Sin información adicional registrada.' }}</div>
+      </div>
+    </section>
+  } @else {
+    <section class="travel-detail-intro">
+      <div class="travel-detail-copy">
+        <h1>Establecimiento no disponible</h1>
+        <div class="travel-detail-description">Este establecimiento ya no está activo o no existe.</div>
+      </div>
+    </section>
+  }
+</main>
+
+@if (establishment()) {
+  <aside class="travel-detail-sticky-bar">
+    <p>Reserva disponible hoy</p>
+    <button type="button">Reservar mesa</button>
+  </aside>
+}

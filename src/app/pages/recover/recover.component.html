@@ -1,0 +1,103 @@
+<a class="skip-link" href="#contenido">Saltar al contenido principal</a>
+
+<main id="contenido" class="travel-login-shell">
+  <header class="travel-login-header travel-login-header-centered">
+    <a class="travel-login-brand" routerLink="/">[Tu Marca]</a>
+  </header>
+
+  <section class="travel-login-stage">
+    <div class="travel-login-card travel-recover-card">
+      <div class="travel-login-copy travel-recover-copy">
+        <h1>Recuperar acceso</h1>
+        <p>Verifica tu identidad para establecer una nueva contrasena.</p>
+      </div>
+
+      <form class="travel-login-form" (submit)="onSubmit($event)" novalidate>
+        @if (step() === 'identify') {
+          <div>
+            <div class="travel-login-field">
+              <label for="recover-email">Correo Electronico</label>
+              <input
+                id="recover-email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                placeholder="correo@ejemplo.com"
+                [value]="email()"
+                (input)="onEmailInput($any($event.target).value)"
+              />
+            </div>
+          </div>
+        }
+
+        @if (step() === 'reset') {
+          <div>
+            <p class="travel-recover-status">Ingresa el codigo de verificacion asociado a {{ email() }}.</p>
+
+            <div class="travel-login-field">
+              <label for="recover-code">Codigo de verificacion</label>
+              <input
+                id="recover-code"
+                name="code"
+                type="text"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="6"
+                placeholder="000000"
+              />
+            </div>
+
+            <div class="travel-login-field">
+              <label for="recover-password">Nueva Contrasena</label>
+              <div class="travel-login-password-wrap">
+                <input
+                  id="recover-password"
+                  name="password"
+                  [type]="passwordVisible() ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  placeholder="..........."
+                />
+                <button class="travel-login-visibility" type="button" (click)="togglePasswordVisibility()">Ver</button>
+              </div>
+            </div>
+
+            <div class="travel-login-field">
+              <label for="recover-confirm">Confirmar Contrasena</label>
+              <div class="travel-login-password-wrap">
+                <input
+                  id="recover-confirm"
+                  name="confirm_password"
+                  [type]="confirmVisible() ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  placeholder="..........."
+                />
+                <button class="travel-login-visibility" type="button" (click)="toggleConfirmVisibility()">Ver</button>
+              </div>
+            </div>
+
+            <div class="password-policy" aria-label="Requisitos de la contrasena">
+              <p>La contrasena debe contener:</p>
+              <ul>
+                <li>Minimo 8 caracteres</li>
+                <li>Al menos una letra mayuscula</li>
+                <li>Al menos una letra minuscula</li>
+                <li>Al menos un numero</li>
+                <li>Al menos un caracter especial</li>
+              </ul>
+            </div>
+          </div>
+        }
+
+        <p class="feedback" aria-live="polite">{{ feedback() }}</p>
+
+        <button class="travel-login-submit" type="submit">
+          <span>{{ step() === 'identify' ? 'Solicitar recuperacion' : 'Guardar nueva contrasena' }}</span>
+        </button>
+      </form>
+
+      <p class="travel-recover-back">
+        <a routerLink="/login">Volver al Inicio de Sesion</a>
+      </p>
+    </div>
+  </section>
+</main>

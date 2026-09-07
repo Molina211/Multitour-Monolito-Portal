@@ -1,0 +1,138 @@
+<main class="travel-booking-page">
+  <header class="travel-profile-topbar">
+    <a class="travel-tours-back" [routerLink]="['/client/tours/detail']" [queryParams]="{ tour: tourKey }">
+      <span aria-hidden="true">&larr;</span>
+      <span>Volver al tour</span>
+    </a>
+    <h1>Reservar tour</h1>
+    <div class="travel-profile-topbar-spacer"></div>
+  </header>
+
+  @if (tour(); as service) {
+    <form class="travel-checkout-content" (submit)="onSubmit($event)">
+      <article class="travel-booking-card">
+        <div class="travel-checkout-section-title"><h2>{{ service.name }}</h2></div>
+        <p class="travel-dashboard-copy">Vigente del {{ startLabel() }} al {{ endLabel() }}.</p>
+
+        <div class="travel-companion-grid">
+          <label>Fecha del servicio
+            <input type="date" required [min]="service.start" [max]="service.end" [value]="departure()" (change)="setDeparture($any($event.target).value)" />
+          </label>
+        </div>
+
+        <div class="travel-booking-guest-row">
+          <div>
+            <strong>Viajeros</strong>
+            <span>Incluye al titular y sus acompañantes.</span>
+          </div>
+          <div class="travel-booking-counter">
+            <button type="button" (click)="onTravelersChange(travelers() - 1 + '')">-</button>
+            <strong>{{ travelers() }}</strong>
+            <button type="button" (click)="onTravelersChange(travelers() + 1 + '')">+</button>
+          </div>
+        </div>
+        <p class="travel-booking-capacity-message" [class.is-error]="!hasCapacity()">
+          {{ hasCapacity() ? 'Disponibilidad validada para la cantidad de viajeros seleccionada.' : 'La cantidad seleccionada supera la capacidad disponible (' + maxTravelers() + ' viajeros).' }}
+        </p>
+
+        @if (transportOptions().length > 0) {
+          <label>Transporte asociado (opcional)
+            <select [value]="selectedTransportItemId()" (change)="selectedTransportItemId.set($any($event.target).value)">
+              <option value="">Sin transporte asociado</option>
+              @for (option of transportOptions(); track option.catalogItemId) {
+                <option [value]="option.catalogItemId">{{ option.name }}</option>
+              }
+            </select>
+          </label>
+        }
+      </article>
+
+      <article class="travel-booking-card">
+        <div class="travel-checkout-section-title"><h2>Cliente titular</h2></div>
+        <div class="travel-companion-grid">
+          <label>Nombre completo<input type="text" required [value]="holderName()" (input)="setHolderName($any($event.target).value)" placeholder="Nombre completo" /></label>
+          <label>Documento de identidad<input type="text" required [value]="holderDocument()" (input)="setHolderDocument($any($event.target).value)" placeholder="Documento" /></label>
+        </div>
+      </article>
+
+      <article class="travel-booking-card">
+        <div class="travel-checkout-section-title">
+          <h2>Viajeros</h2>
+          <span>{{ requiredCompanions() === 0 ? 'No requiere acompañantes' : requiredCompanions() + ' acompañante' + (requiredCompanions() === 1 ? '' : 's') + ' requerido' + (requiredCompanions() === 1 ? '' : 's') }}</span>
+        </div>
+        <p class="travel-dashboard-copy">La cantidad total de viajeros determina los acompañantes que deben registrarse. Los documentos no pueden repetirse dentro de la misma reserva.</p>
+        @for (index of companionIndexes(); track index) {
+          <article class="travel-companion-card">
+            <div class="travel-checkout-section-title"><h2>Acompañante {{ index + 1 }}</h2></div>
+            <div class="travel-companion-grid">
+              <label>Nombre completo<input type="text" required (input)="setCompanionName(index, $any($event.target).value)" placeholder="Nombre completo" /></label>
+              <label>Documento de identidad<input type="text" required (input)="setCompanionDocument(index, $any($event.target).value)" placeholder="Documento" /></label>
+              <label>Fecha de nacimiento<input type="date" required (input)="setCompanionBirthDate(index, $any($event.target).value)" /></label>
+            </div>
+          </article>
+        }
+      </article>
+
+      <article class="travel-booking-card">
+        <div class="travel-checkout-section-title"><h2>Condiciones de reserva</h2></div>
+        <ul>
+          @for (condition of conditions(); track condition) {
+            <li>{{ condition }}</li>
+          }
+        </ul>
+        <label class="travel-checkout-consent"><input type="checkbox" required (change)="conditionsAccepted.set($any($event.target).checked)" /> Confirmo que acepto las condiciones aplicables a esta reserva.</label>
+      </article>
+
+      <article class="travel-booking-card">
+        <div class="travel-checkout-section-title"><h2>Metodo de pago</h2></div>
+        <div class="travel-checkout-payment-list">
+          @for (method of paymentOptions; track method) {
+            <label class="travel-checkout-payment-option" [class.is-active]="paymentMethod() === method">
+              <input type="radio" name="payment-method" [value]="method" (change)="paymentMethod.set(method)" />
+              <div>
+                <strong>{{ method }}</strong>
+                <span>
+                  @if (method === 'Transferencia') { Recibe los datos bancarios y confirma con comprobante. }
+                  @else if (method === 'Efectivo') { El pago en efectivo será registrado por el equipo del operador según el canal acordado. }
+                  @else { Registra un pago parcial y completa el saldo despues. }
+                </span>
+              </div>
+            </label>
+          }
+        </div>
+        @if (paymentMethod() === 'Abono') {
+          <div class="travel-companion-grid">
+            <label>Monto a abonar<input type="number" min="1" (input)="onDepositAmountChange($any($event.target).value)" placeholder="Ej. 500000" /></label>
+            <p class="travel-dashboard-copy">El saldo pendiente se calcula sobre el valor final: {{ finalLabel() }}.</p>
+          </div>
+        }
+      </article>
+
+      <article class="travel-booking-card travel-checkout-help-card">
+        <div class="travel-checkout-section-title"><h2>¿Necesitas ayuda?</h2></div>
+        <div class="travel-checkout-help-copy">
+          <strong>Asistencia comercial</strong>
+          <span>El equipo del operador puede ayudarte a continuar el proceso.</span>
+        </div>
+      </article>
+
+      <article class="travel-booking-card travel-checkout-pricing">
+        <div class="travel-checkout-pricing-total">
+          <span>Valor proyectado</span>
+          <strong>{{ projectedLabel() }}</strong>
+        </div>
+      </article>
+
+      <p class="travel-dashboard-copy" [class.is-error]="!feedbackIsValid()" aria-live="polite">{{ feedback() }}</p>
+      <button type="submit" class="travel-booking-continue" [disabled]="submitting()">{{ submitting() ? 'Creando reserva...' : 'Crear reserva' }}</button>
+    </form>
+  } @else if (loading()) {
+    <section class="travel-checkout-content">
+      <p class="travel-dashboard-copy">Cargando tour...</p>
+    </section>
+  } @else {
+    <section class="travel-checkout-content">
+      <p class="travel-dashboard-copy">Este tour ya no está activo, vigente, o no existe.</p>
+    </section>
+  }
+</main>

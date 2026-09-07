@@ -1,0 +1,33 @@
+<header class="operator-topbar operator-topbar--catalog-management"><div><p class="operator-eyebrow">Catálogos</p><h1>Gestionar restaurantes asociados</h1></div><a class="operator-outline" routerLink="/operator/catalog">Volver a catálogos</a></header>
+<section class="operator-panel" data-managed-tour-catalog id="restaurantes-catalog-panel">
+  <p class="operator-eyebrow">Establecimientos</p><h2>Restaurantes asociados del tenant</h2>
+  <p class="operator-copy">Desactivar evita que aparezcan en Gastronomía Cliente; el registro se conserva (histórico).</p>
+
+  @if (loading()) {
+    <p class="operator-copy">Cargando restaurantes...</p>
+  } @else if (error()) {
+    <p class="feedback is-error">{{ error() }}</p>
+  } @else {
+    <div class="operator-table-wrap">
+      <table class="operator-table">
+        <thead><tr><th>Nombre comercial</th><th>Información comercial</th><th>Estado</th><th>Acción</th></tr></thead>
+        <tbody>
+          @for (restaurant of restaurants(); track restaurant.establishmentId) {
+            <tr>
+              <td><strong>{{ restaurant.name }}</strong></td>
+              <td>{{ restaurant.description || 'Sin información adicional registrada.' }}</td>
+              <td><span class="operator-status" [class.is-confirmed]="restaurant.active" [class.is-cancelled]="!restaurant.active">{{ restaurant.active ? 'Activo' : 'Inactivo' }}</span></td>
+              <td>
+                @if (roleService.isAdmin()) {
+                  <button class="operator-row-toggle" type="button" (click)="toggle(restaurant.establishmentId, restaurant.active)">{{ restaurant.active ? 'Desactivar' : 'Activar' }}</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="4">Aún no se han registrado restaurantes asociados. Usa "Nuevo servicio" → "Establecimiento asociado" → "Restaurante asociado" para crear uno.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

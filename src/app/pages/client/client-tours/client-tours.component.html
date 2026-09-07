@@ -1,0 +1,65 @@
+<main class="travel-tours-shell">
+  <header class="travel-tours-header">
+    <a class="travel-tours-brand" routerLink="/">{{ tenantName() }}</a>
+    <nav class="travel-tours-nav" aria-label="Navegación principal del cliente">
+      <a class="is-active" routerLink="/client/tours">Explorar</a>
+      <a routerLink="/client/lodging">Alojamiento</a>
+      <a routerLink="/client/gastronomy">Gastronomía</a>
+      <a routerLink="/client">Reservas</a>
+      <a routerLink="/client/profile">Perfil</a>
+    </nav>
+  </header>
+
+  <section class="travel-tours-topbar">
+    <a class="travel-tours-back" routerLink="/client">
+      <span aria-hidden="true">&larr;</span>
+      <span>Volver al panel cliente</span>
+    </a>
+
+    <div class="travel-tours-search-row">
+      <input type="search" placeholder="Buscar tours por nombre..." [value]="searchTerm()" (input)="onSearchInput($event)" />
+      <button type="button" (click)="onSearchInput($event)">Buscar</button>
+    </div>
+  </section>
+
+  @if (loading()) {
+    <p class="travel-dashboard-copy">Cargando tours...</p>
+  } @else if (loadError()) {
+    <div class="travel-catalog-empty-state">
+      <strong>No fue posible cargar el catálogo de tours.</strong>
+      <p>Intenta nuevamente más tarde.</p>
+    </div>
+  } @else {
+    <section class="travel-tours-grid" aria-label="Listado de tours disponibles">
+      @for (tour of filteredTours(); track tour.id) {
+        <article class="travel-tour-card">
+          <div class="travel-tour-media tour-media-one">
+            @if (tour.image) {
+              <img class="gastronomy-card-image" [src]="tour.image" alt="Imagen de {{ tour.name }}" />
+            }
+          </div>
+          <div class="travel-tour-body">
+            <strong>{{ tour.name }}</strong>
+            <div class="travel-tour-meta">
+              <div class="travel-tour-price">
+                <small>Desde</small>
+                <em>${{ tour.price | number: '1.0-0' }}</em>
+              </div>
+              <a class="travel-tour-detail-link" [routerLink]="['/client/tours/detail']" [queryParams]="{ id: tour.id }">Ver detalle</a>
+            </div>
+          </div>
+        </article>
+      } @empty {
+        <p class="travel-dashboard-copy">No hay tours disponibles en este momento.</p>
+      }
+    </section>
+
+    @if (showSearchEmpty()) {
+      <div class="travel-catalog-empty-state">
+        <strong>No encontramos resultados con esa búsqueda.</strong>
+        <p>Prueba con otra búsqueda.</p>
+        <button type="button" (click)="clearSearch()">Limpiar búsqueda</button>
+      </div>
+    }
+  }
+</main>

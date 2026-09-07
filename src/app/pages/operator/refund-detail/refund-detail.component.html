@@ -1,0 +1,69 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Control de cobro</p><h1>Detalle de devolución</h1></div>
+  <a class="operator-outline" routerLink="/operator/payments/refunds">Volver a solicitudes</a>
+</header>
+<p class="operator-access-note">Solo el Administrador del operador (Tenant Admin) puede autorizar o rechazar una devolución. El Colaborador operativo solo puede registrar la ejecución cuando exista autorización previa y trazable del Administrador.</p>
+
+@if (request(); as request) {
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Solicitud</p><h2>Información de la devolución</h2>
+    <div class="operator-detail-list">
+      <div><span>Reserva relacionada</span><strong>#{{ request.code }}</strong></div>
+      <div><span>Cliente</span><strong>{{ request.customer }}</strong></div>
+      <div><span>Motivo / causal</span><strong>{{ request.refundOrigin?.causal }}</strong></div>
+      <div><span>Monto</span><strong>{{ request.refundOrigin?.potentialAmount }}</strong></div>
+      <div><span>Estado actual</span><strong>{{ request.refundOrigin?.status }}</strong></div>
+    </div>
+  </section>
+
+  @if (showDecisionPanel()) {
+    <section class="operator-panel">
+      <p class="operator-eyebrow">Decisión</p><h2>Autorizar o rechazar devolución</h2>
+      <form (submit)="$event.preventDefault()">
+        <div class="operator-form-grid">
+          <label class="operator-form-wide">
+            Motivo (obligatorio)
+            <textarea
+              required
+              placeholder="Describe el motivo de la autorización o el rechazo"
+              [disabled]="decisionDone() || decisionSubmitting()"
+              [value]="decisionNote()"
+              (input)="decisionNote.set($any($event.target).value)"
+            ></textarea>
+          </label>
+        </div>
+        <p class="operator-form-feedback" [class.is-valid]="decisionFeedbackIsValid()">{{ decisionFeedback() }}</p>
+        <div class="operator-form-actions">
+          <button class="operator-outline" type="button" [disabled]="decisionDone() || decisionSubmitting()" (click)="reject()">Rechazar devolución</button>
+          <button class="operator-primary" type="button" [disabled]="decisionDone() || decisionSubmitting()" (click)="authorize()">Autorizar devolución</button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @if (showExecute()) {
+    <section class="operator-panel">
+      <p class="operator-eyebrow">Ejecución</p><h2>Registrar ejecución</h2>
+      <form (submit)="$event.preventDefault(); registerExecution()">
+        <div class="operator-form-grid">
+          <label>
+            ¿Hubo salida efectiva de dinero?
+            <select required [disabled]="executeDone() || executeSubmitting()" [value]="outflow()" (change)="outflow.set($any($event.target).value)">
+              <option value="">Selecciona una opción</option>
+              <option value="si">Sí, ya se realizó la salida de dinero (registrada al solicitar la devolución)</option>
+              <option value="no">No, queda como saldo a favor pendiente</option>
+            </select>
+          </label>
+        </div>
+        <p class="operator-form-feedback" [class.is-valid]="executeFeedbackIsValid()">{{ executeFeedback() }}</p>
+        <div class="operator-form-actions">
+          <button class="operator-primary" type="submit" [disabled]="executeDone() || executeSubmitting()">Confirmar</button>
+        </div>
+      </form>
+    </section>
+  }
+} @else if (loading()) {
+  <p class="operator-copy">Cargando solicitud...</p>
+} @else {
+  <p class="operator-access-note">No se encontró la solicitud seleccionada.</p>
+}

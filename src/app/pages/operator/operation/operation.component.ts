@@ -1,6 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { OperatorOperationService, RegisteredExecution, UpcomingExecution } from '../operator-operation.service';
+import { OperatorOperationService, RegisteredExecution } from '../operator-operation.service';
+import { OperatorReservation, OperatorReservationService } from '../operator-reservation.service';
 import { OperatorRoleService } from '../operator-role.service';
 
 @Component({
@@ -10,29 +11,34 @@ import { OperatorRoleService } from '../operator-role.service';
   templateUrl: './operation.component.html',
   styleUrl: './operation.component.css',
 })
-export class OperationComponent {
+export class OperationComponent implements OnInit {
   private readonly operationService = inject(OperatorOperationService);
+  private readonly reservationService = inject(OperatorReservationService);
   private readonly roleService = inject(OperatorRoleService);
-  private readonly refresh = signal(0);
 
-  upcoming = computed<UpcomingExecution[]>(() => {
-    this.refresh();
-    return this.operationService.getUpcomingExecutions();
-  });
+  loading = signal(true);
+  upcoming = signal<OperatorReservation[]>([]);
+  registered = signal<RegisteredExecution[]>([]);
+
   upcomingCountLabel = computed(() => {
     const count = this.upcoming().length;
     return `${count} próxima${count === 1 ? '' : 's'}`;
   });
-
-  registered = computed<RegisteredExecution[]>(() => {
-    this.refresh();
-    return this.operationService.getRegisteredExecutions();
-  });
   hasRegistered = computed(() => this.registered().length > 0);
 
-  // Regla 5: mientras la reserva no cumpla la condicion de pago vigente (Confirmada), no
-  // se permite iniciar ejecucion; se mantiene "Ver pagos".
-  canExecute(reservation: UpcomingExecution): boolean {
+  async ngOnInit(): Promise<void> {
+    await this.load();
+  }
+
+  private async load(): Promise<void> {
+    this.loading.set(true);
+    await this.reservationService.refresh();
+    this.upcoming.set(this.operationService.getUpcomingExecutions());
+    this.registered.set(await this.operationService.getRegisteredExecutions());
+    this.loading.set(false);
+  }
+
+  canExecute(reservation: OperatorReservation): boolean {
     return reservation.statusClass === 'is-confirmed';
   }
 
@@ -41,30 +47,29 @@ export class OperationComponent {
   }
 
   finalizeFeedback = signal('');
+  finalizing = signal(false);
 
-  // Cierre operativo (Seccion 16 "Reserva"): disponible sobre cualquier ejecucion ya
-  // registrada que aun no este finalizada. No depende de si el servicio se presto o no:
-  // ambos casos deben poder cerrarse operativamente.
   canFinalize(execution: RegisteredExecution['execution']): boolean {
     return !execution.finalized;
   }
 
-  finalize(code: string): void {
-    const result = this.operationService.finalizeExecution(code, this.roleService.roleLabel());
+  async finalize(code: string): Promise<void> {
+    this.finalizing.set(true);
+    const result = await this.operationService.finalizeExecution(code);
+    this.finalizing.set(false);
     this.finalizeFeedback.set(
-      result
+      result.ok
         ? `Ejecución de la reserva #${code} finalizada. Ya no aparece como en ejecución activa.`
-        : `No fue posible finalizar la ejecución de la reserva #${code}.`,
+        : `No fue posible finalizar la ejecución de la reserva #${code}: ${result.ok ? '' : result.message}`,
     );
-    this.refresh.update((n) => n + 1);
+    await this.load();
   }
 
   costPanelOpen = signal(false);
   costFeedback = signal('Selecciona una ejecución registrada para asociar el costo.');
   costFeedbackValid = signal(false);
+  costSubmitting = signal(false);
 
-  // Regla 3 (RF-009, precondicion "Ejecucion iniciada"): mientras no exista ninguna
-  // ejecucion registrada, "Registrar costo" permanece deshabilitado.
   openCostPanel(): void {
     if (!this.hasRegistered()) return;
     this.costFeedback.set('Selecciona una ejecución registrada para asociar el costo.');
@@ -76,10 +81,7 @@ export class OperationComponent {
     this.costPanelOpen.set(false);
   }
 
-  // Regla 3 (RF-009, precondicion "Ejecucion iniciada"): "Registrar costo" solo se
-  // habilita sobre una ejecucion real ya registrada; nunca un costo generico sin
-  // operacion relacionada.
-  onCostSubmit(event: Event): void {
+  async onCostSubmit(event: Event): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const data = new FormData(form);
@@ -97,9 +99,12 @@ export class OperationComponent {
       this.costFeedbackValid.set(false);
       return;
     }
-    const cost = this.operationService.registerCost(reservationCode, concept, amount, this.roleService.roleLabel());
-    if (!cost) {
-      this.costFeedback.set('Selecciona una ejecución real ya registrada para asociar el costo.');
+
+    this.costSubmitting.set(true);
+    const result = await this.operationService.registerCost(reservationCode, concept, amount);
+    this.costSubmitting.set(false);
+    if (!result.ok) {
+      this.costFeedback.set(result.message);
       this.costFeedbackValid.set(false);
       return;
     }
@@ -107,6 +112,5 @@ export class OperationComponent {
     this.costFeedback.set(`Costo registrado y asociado a la ejecución de la reserva #${reservationCode}.`);
     this.costFeedbackValid.set(true);
     this.costPanelOpen.set(false);
-    this.refresh.update((n) => n + 1);
   }
 }

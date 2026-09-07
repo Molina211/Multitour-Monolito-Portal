@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { parseCOPToNumber } from '../../core/money.util';
 
 export interface CatalogRecordDefault {
   key: string;
@@ -79,9 +80,7 @@ const TOUR_TRANSPORT_LINKS_KEY = 'multitour-tour-transport-links';
 // recurso demo de Transporte) sin reemplazar OPERATOR_CATALOG_DEFAULTS.
 const SERVICE_FIELD_OVERRIDES_KEY = 'multitour-service-fields';
 
-function parseCOP(value: string | undefined): number {
-  return Number(String(value || '').replace(/[^0-9]/g, '')) || 0;
-}
+const parseCOP = parseCOPToNumber;
 
 // Mismos registros demo y catalogos ya confirmados en la landing aprobada (app.js: OPERATOR_CATALOG_DEFAULTS).
 export const OPERATOR_CATALOG_DEFAULTS: Record<string, CatalogDefaultsEntry> = {

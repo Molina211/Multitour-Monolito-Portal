@@ -1,11 +1,10 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import {
-  COLLABORATOR_ROLE,
-  OPERATOR_CURRENT_TENANT_NAME,
-  OperatorCollaboratorService,
-  getPasswordPolicyError,
-} from '../operator-collaborator.service';
+import { CollaboratorApiService } from '../../../core/collaborator-api.service';
+import { isNetworkError, NETWORK_ERROR_MESSAGE } from '../../../core/http-error.util';
+import { SessionService } from '../../../core/session.service';
+import { getPasswordPolicyError } from '../../../core/password-policy';
 
 @Component({
   selector: 'app-operator-register-collaborator',
@@ -15,16 +14,20 @@ import {
   styleUrl: './register-collaborator.component.css',
 })
 export class RegisterCollaboratorComponent {
-  private readonly collaboratorService = inject(OperatorCollaboratorService);
+  private readonly collaboratorApi = inject(CollaboratorApiService);
+  private readonly sessionService = inject(SessionService);
   private readonly router = inject(Router);
 
-  readonly fixedRole = COLLABORATOR_ROLE;
-  readonly tenantName = OPERATOR_CURRENT_TENANT_NAME;
+  // Rol fijo real (MembershipRole.OPERATIONAL_COLLABORATOR): este endpoint no permite
+  // elegir otro rol ni otro tenant (siempre registra dentro del tenant de la sesión activa).
+  readonly fixedRole = 'Colaborador operativo';
+  readonly tenantName = this.sessionService.tenantId() || '';
 
   passwordVisible = signal(false);
   confirmVisible = signal(false);
   feedback = signal('');
   feedbackIsError = signal(false);
+  submitting = signal(false);
 
   togglePasswordVisibility(): void {
     this.passwordVisible.set(!this.passwordVisible());
@@ -34,12 +37,15 @@ export class RegisterCollaboratorComponent {
     this.confirmVisible.set(!this.confirmVisible());
   }
 
-  // PDR linea 129: nombre completo, correo electronico, contrasena inicial y confirmacion
-  // (mismo mecanismo ya usado para el primer Administrador de un tenant). El rol queda fijo
-  // en "Colaborador operativo" y el tenant se asocia automaticamente al operador activo:
-  // no se permite elegir Administrador, roles personalizados ni otro tenant.
   onSubmit(event: Event): void {
     event.preventDefault();
+    const tenantId = this.sessionService.tenantId();
+    const actorId = this.sessionService.session()?.membershipId;
+    if (!tenantId || !actorId) {
+      this.setFeedback('No hay una sesión activa.', true);
+      return;
+    }
+
     const form = event.currentTarget as HTMLFormElement;
     const data = new FormData(form);
     const name = String(data.get('name') || '').trim();
@@ -61,9 +67,34 @@ export class RegisterCollaboratorComponent {
       return;
     }
 
-    this.collaboratorService.register(name, email);
-    this.setFeedback('Colaborador registrado correctamente.', false);
-    window.setTimeout(() => this.router.navigateByUrl('/operator/collaborators'), 700);
+    this.submitting.set(true);
+    this.setFeedback('Registrando...', false);
+    this.collaboratorApi
+      .register(tenantId, {
+        name,
+        email,
+        password: initialPassword,
+        passwordConfirmation: confirmPassword,
+        actorId,
+      })
+      .subscribe({
+        next: () => {
+          this.submitting.set(false);
+          this.setFeedback('Colaborador registrado correctamente.', false);
+          window.setTimeout(() => this.router.navigateByUrl('/operator/collaborators'), 700);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.submitting.set(false);
+          this.setFeedback(this.mapError(err), true);
+        },
+      });
+  }
+
+  private mapError(error: HttpErrorResponse): string {
+    if (error.status === 409) return 'Ya existe un colaborador registrado con ese correo.';
+    if (error.status === 400) return error.error?.message || 'Revisa los datos ingresados.';
+    if (isNetworkError(error)) return NETWORK_ERROR_MESSAGE;
+    return 'No fue posible registrar el colaborador.';
   }
 
   private setFeedback(message: string, isError: boolean): void {

@@ -1,8 +1,10 @@
 // Configuracion por defecto (build de produccion, `ng build` sin --configuration).
-// No existe todavia un despliegue real del Backend: se deja el mismo valor local
-// documentado en la auditoria (puerto host Docker 8081) hasta que exista una URL de
-// produccion real. NO inventar un dominio de produccion que no existe.
+// Ruta relativa: Nginx (nginx.conf, location /api/) hace proxy_pass hacia el Backend
+// real (host.docker.internal:8081), igual que proxy.conf.json hace con `ng serve`. Asi
+// el navegador solo habla con el mismo origen (localhost:8080), sin exponerse al CORS
+// no configurado del Backend (ver SecurityConfig.java: sin @CrossOrigin ni
+// CorsConfigurationSource). NO inventar un dominio de produccion que no existe.
 export const environment = {
   production: true,
-  apiBaseUrl: 'http://localhost:8081/api',
+  apiBaseUrl: '/api',
 };

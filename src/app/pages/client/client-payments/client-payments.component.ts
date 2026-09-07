@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ClientReservationService, normalizeClientReservationStatus } from '../client-reservation.service';
 
@@ -9,8 +9,15 @@ import { ClientReservationService, normalizeClientReservationStatus } from '../c
   templateUrl: './client-payments.component.html',
   styleUrl: './client-payments.component.css',
 })
-export class ClientPaymentsComponent {
+export class ClientPaymentsComponent implements OnInit {
   private readonly reservationService = inject(ClientReservationService);
+
+  loading = this.reservationService.loading;
+  error = this.reservationService.error;
+
+  ngOnInit(): void {
+    void this.reservationService.refresh();
+  }
 
   // BUG corregido: esta pantalla es la PLANTILLA GENERICA multitenant; resolver "el primer
   // tenant Activo" mostraba el nombre de cualquier tenant creado en Plataforma. Sin sesion

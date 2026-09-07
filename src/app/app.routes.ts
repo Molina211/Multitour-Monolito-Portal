@@ -55,6 +55,7 @@ import { CashMonthlyComponent } from './pages/operator/cash-monthly/cash-monthly
 import { RegisterExecutionComponent } from './pages/operator/register-execution/register-execution.component';
 import { ReportsComponent } from './pages/operator/reports/reports.component';
 import { colaboradorRestrictedGuard } from './pages/operator/colaborador-restricted.guard';
+import { clientSessionGuard, operatorSessionGuard, platformSessionGuard } from './core/session.guard';
 import { CollaboratorsComponent } from './pages/operator/collaborators/collaborators.component';
 import { RegisterCollaboratorComponent } from './pages/operator/register-collaborator/register-collaborator.component';
 import { CollaboratorDetailComponent } from './pages/operator/collaborator-detail/collaborator-detail.component';
@@ -65,21 +66,29 @@ export const routes: Routes = [
   { path: 'crear-cuenta', component: SignupComponent },
   { path: 'recuperar', component: RecoverComponent },
   { path: 'admin-login', component: AdminLoginComponent },
-  { path: 'client', component: ClientDashboardComponent },
-  { path: 'client/reservations', component: ClientReservationsComponent },
-  { path: 'client/reservations/payment', component: ClientReservationPaymentComponent },
-  { path: 'client/payments', component: ClientPaymentsComponent },
+  // Catalogo de solo lectura (tours/gastronomia/restaurantes/hospedaje): navegable sin
+  // sesion, igual que cualquier catalogo publico antes de crear cuenta o iniciar sesion.
   { path: 'client/tours', component: ClientToursComponent },
   { path: 'client/tours/detail', component: ClientTourDetailComponent },
-  { path: 'client/tours/booking', component: ClientTourBookingComponent },
   { path: 'client/gastronomy', component: ClientGastronomyComponent },
   { path: 'client/gastronomy/restaurants', component: ClientRestaurantsComponent },
   { path: 'client/gastronomy/detail', component: ClientGastronomyDetailComponent },
   { path: 'client/lodging', component: ClientLodgingComponent },
-  { path: 'client/profile', component: ClientProfileComponent },
+  // Area privada del Cliente: requiere sesion real END_CUSTOMER (Fase 3).
+  { path: 'client', component: ClientDashboardComponent, canActivate: [clientSessionGuard] },
+  { path: 'client/reservations', component: ClientReservationsComponent, canActivate: [clientSessionGuard] },
+  {
+    path: 'client/reservations/payment',
+    component: ClientReservationPaymentComponent,
+    canActivate: [clientSessionGuard],
+  },
+  { path: 'client/payments', component: ClientPaymentsComponent, canActivate: [clientSessionGuard] },
+  { path: 'client/tours/booking', component: ClientTourBookingComponent, canActivate: [clientSessionGuard] },
+  { path: 'client/profile', component: ClientProfileComponent, canActivate: [clientSessionGuard] },
   {
     path: 'platform',
     component: PlatformShellComponent,
+    canActivate: [platformSessionGuard],
     children: [
       { path: '', component: PlatformDashboardComponent },
       { path: 'operators', component: OperatorsComponent },
@@ -91,6 +100,7 @@ export const routes: Routes = [
   {
     path: 'operator',
     component: OperatorShellComponent,
+    canActivate: [operatorSessionGuard],
     children: [
       { path: '', component: OperatorDashboardComponent },
       { path: 'reservations', component: ReservationsComponent },

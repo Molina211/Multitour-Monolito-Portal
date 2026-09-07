@@ -1,185 +1,115 @@
 import { Injectable, inject } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { ExecutionResponse, OperationApiService, OperationCostResponse } from '../../core/operation-api.service';
+import { isNetworkError, NETWORK_ERROR_MESSAGE } from '../../core/http-error.util';
 import { OperatorReservation, OperatorReservationService } from './operator-reservation.service';
-
-// Ejecucion real de servicios (RF-007, linea 447): registra lo efectivamente prestado y
-// no prestado, con causal obligatoria si no se presto (RN-EJE-005), y la diferencia entre
-// lo reservado y lo ejecutado (RN-EJE-003). Al registrarse, la reserva inicia "En ejecución".
-export interface ReservationExecution {
-  reserved: number;
-  served: boolean;
-  executed: number;
-  causal: string;
-  registeredAt: string;
-  registeredBy: string;
-  // Cierre operativo (Seccion 16 "Reserva" - transicion En ejecucion a Finalizada): no
-  // cambia precio, descuentos, pagos ni saldo; solo cierra la ejecucion iniciada.
-  finalized?: boolean;
-  finalizedAt?: string;
-  finalizedBy?: string;
-}
-
-// Costos operacionales (RF-009, linea 469): solo pueden registrarse sobre una ejecucion
-// real ya iniciada y quedan siempre asociados a esa ejecucion (RN-OPE-001); nunca como
-// costo generico sin operacion relacionada.
-export interface OperationCost {
-  id: string;
-  reservationCode: string;
-  concept: string;
-  amount: number;
-  registeredAt: string;
-  registeredBy: string;
-}
-
-export interface UpcomingExecution extends OperatorReservation {}
+import { SessionService } from '../../core/session.service';
 
 export interface RegisteredExecution {
   reservation: OperatorReservation;
-  execution: ReservationExecution;
+  execution: ExecutionResponse;
 }
 
-// Misma clave ya usada en la landing aprobada (app.js: OPERATOR_RESERVATION_EXECUTIONS_KEY).
-const RESERVATION_EXECUTIONS_KEY = 'multitour-reservation-executions';
-// Misma clave ya usada en la landing aprobada (app.js: OPERATOR_OPERATION_COSTS_KEY).
-const OPERATION_COSTS_KEY = 'multitour-operation-costs';
-
-function readStorage<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-// Simulacion local (localStorage), mismas claves ya usadas en la landing aprobada. No
-// modifica OperatorReservationService.getReservation(): la ejecucion registrada solo se
-// refleja dentro de esta pantalla (Operación y costos) y su propio flujo de registro,
-// igual que en la landing, para no alterar el comportamiento de otras pantallas.
+// Fuente real: OperationController (execution/costs). El estado "Confirmada" / "En
+// ejecución" / "Finalizada" de ReservationStatus.java YA distingue por si solo si una
+// reserva tiene ejecucion registrada o no - no hace falta un overlay local aparte como
+// antes (RESERVATION_EXECUTIONS_KEY).
 @Injectable({ providedIn: 'root' })
 export class OperatorOperationService {
+  private readonly operationApi = inject(OperationApiService);
   private readonly reservationService = inject(OperatorReservationService);
+  private readonly sessionService = inject(SessionService);
 
-  private getExecutions(): Record<string, ReservationExecution> {
-    return readStorage<Record<string, ReservationExecution>>(RESERVATION_EXECUTIONS_KEY, {});
+  getUpcomingExecutions(): OperatorReservation[] {
+    return this.reservationService.reservations().filter((r) => r.statusClass === 'is-confirmed');
   }
 
-  private saveExecutions(all: Record<string, ReservationExecution>): void {
-    localStorage.setItem(RESERVATION_EXECUTIONS_KEY, JSON.stringify(all));
-  }
-
-  getExecution(code: string): ReservationExecution | null {
-    return this.getExecutions()[code] || null;
-  }
-
-  // Misma cadena de resolucion ya usada por OperatorReservationService.getReservation():
-  // aplica cancelacion (terminal) o, si no hay cancelacion, la ejecucion real registrada,
-  // para que "Operación y costos" nunca muestre un estado desactualizado.
-  resolveForOperation(code: string): OperatorReservation | undefined {
-    const reservation = this.reservationService.getReservation(code);
-    if (!reservation) return undefined;
-    if (reservation.statusClass === 'is-cancelled') return reservation;
-    const execution = this.getExecution(code);
-    if (!execution) return reservation;
-    if (execution.finalized) {
-      return { ...reservation, status: 'Finalizada', statusClass: 'is-finalized', execution: 'Finalizada' };
+  async getRegisteredExecutions(): Promise<RegisteredExecution[]> {
+    const tenantId = this.sessionService.tenantId();
+    if (!tenantId) return [];
+    const candidates = this.reservationService
+      .reservations()
+      .filter((r) => r.statusClass === 'is-execution' || r.statusClass === 'is-finalized');
+    const results: RegisteredExecution[] = [];
+    for (const reservation of candidates) {
+      try {
+        const execution = await firstValueFrom(this.operationApi.getExecution(tenantId, reservation.code));
+        results.push({ reservation, execution });
+      } catch {
+        /* sin ejecucion real registrada todavia para esta reserva */
+      }
     }
-    return { ...reservation, status: 'En ejecución', statusClass: 'is-execution', execution: 'En ejecución' };
+    return results;
   }
 
-  // Regla 1 (CORREGIR): el contador de "próximas" sale siempre de las ejecuciones
-  // pendientes reales, nunca de un numero quemado.
-  getUpcomingExecutions(): UpcomingExecution[] {
-    return this.reservationService.reservationCodesInOrder
-      .map((code) => this.resolveForOperation(code))
-      .filter((reservation): reservation is OperatorReservation => !!reservation && reservation.execution === 'Pendiente de ejecución');
+  canRegisterExecution(reservation: OperatorReservation): boolean {
+    return reservation.statusClass === 'is-confirmed';
   }
 
-  // Regla 4: solo se listan ejecuciones realmente registradas, sin inventar datos.
-  getRegisteredExecutions(): RegisteredExecution[] {
-    const result: RegisteredExecution[] = [];
-    for (const code of this.reservationService.reservationCodesInOrder) {
-      const execution = this.getExecution(code);
-      if (!execution) continue;
-      const reservation = this.resolveForOperation(code);
-      if (!reservation) continue;
-      result.push({ reservation, execution });
+  async registerExecution(
+    code: string,
+    served: boolean,
+    executed: number,
+    causal: string,
+  ): Promise<{ ok: true } | { ok: false; message: string }> {
+    const tenantId = this.sessionService.tenantId();
+    const actorId = this.sessionService.session()?.membershipId;
+    if (!tenantId || !actorId) return { ok: false, message: 'No hay una sesión activa.' };
+    try {
+      await firstValueFrom(
+        this.operationApi.registerExecution(tenantId, code, {
+          served,
+          executed: served ? Math.max(0, executed) : null,
+          causal: served ? null : causal,
+          actorId,
+        }),
+      );
+      await this.reservationService.refresh();
+      return { ok: true };
+    } catch (error: unknown) {
+      return { ok: false, message: this.mapError(error) };
     }
+  }
+
+  async finalizeExecution(code: string): Promise<{ ok: true } | { ok: false; message: string }> {
+    const result = await this.reservationService.finalize(code);
     return result;
   }
 
-  // Regla 5: no se permite iniciar ejecucion mientras la reserva no cumpla la condicion
-  // de pago vigente (Confirmada).
-  canRegisterExecution(reservation: OperatorReservation): boolean {
-    return reservation.statusClass === 'is-confirmed' && !this.getExecution(reservation.code);
+  async registerCost(
+    reservationCode: string,
+    concept: string,
+    amount: number,
+  ): Promise<{ ok: true } | { ok: false; message: string }> {
+    const tenantId = this.sessionService.tenantId();
+    const actorId = this.sessionService.session()?.membershipId;
+    if (!tenantId || !actorId) return { ok: false, message: 'No hay una sesión activa.' };
+    try {
+      await firstValueFrom(this.operationApi.registerCost(tenantId, reservationCode, { concept, amount, actorId }));
+      return { ok: true };
+    } catch (error: unknown) {
+      return { ok: false, message: this.mapError(error) };
+    }
   }
 
-  registerExecution(code: string, served: boolean, executed: number, causal: string, actor: string): ReservationExecution | null {
-    const reservation = this.reservationService.getReservation(code);
-    if (!reservation || reservation.statusClass !== 'is-confirmed' || this.getExecution(code)) return null;
-    const execution: ReservationExecution = {
-      reserved: reservation.travelers,
-      served,
-      executed: served ? Math.max(0, executed) : 0,
-      causal: served ? '' : causal,
-      registeredAt: new Date().toISOString(),
-      registeredBy: actor,
-    };
-    const all = this.getExecutions();
-    all[code] = execution;
-    this.saveExecutions(all);
-    return execution;
+  async getAllCosts(): Promise<OperationCostResponse[]> {
+    const tenantId = this.sessionService.tenantId();
+    if (!tenantId) return [];
+    const registered = await this.getRegisteredExecutions();
+    const results: OperationCostResponse[] = [];
+    for (const { reservation } of registered) {
+      const costs = await firstValueFrom(this.operationApi.listCosts(tenantId, reservation.code));
+      results.push(...costs);
+    }
+    return results;
   }
 
-  // Finalizar ejecución (Seccion 16 "Reserva": transicion En ejecucion a Finalizada, "cuando
-  // termina la prestacion del servicio y se cierra operativamente"). BACKEND API FALTANTE —
-  // FINALIZAR EJECUCIÓN: no existe endpoint real; el cierre queda en el mismo mecanismo
-  // local ya usado para registrar la ejecucion, de forma desacoplada para reemplazarlo
-  // despues por una API real sin cambiar esta firma.
-  // No modifica precio, descuentos, pagos ni saldo: solo cierra la ejecucion.
-  finalizeExecution(code: string, actor: string): ReservationExecution | null {
-    const execution = this.getExecution(code);
-    if (!execution || execution.finalized) return null;
-    const finalized: ReservationExecution = {
-      ...execution,
-      finalized: true,
-      finalizedAt: new Date().toISOString(),
-      finalizedBy: actor,
-    };
-    const all = this.getExecutions();
-    all[code] = finalized;
-    this.saveExecutions(all);
-    return finalized;
-  }
-
-  private getCosts(): OperationCost[] {
-    return readStorage<OperationCost[]>(OPERATION_COSTS_KEY, []);
-  }
-
-  getAllCosts(): OperationCost[] {
-    return this.getCosts();
-  }
-
-  private saveCosts(costs: OperationCost[]): void {
-    localStorage.setItem(OPERATION_COSTS_KEY, JSON.stringify(costs));
-  }
-
-  // Regla 3 (RF-009, precondicion "Ejecucion iniciada"): "Registrar costo" solo se
-  // habilita sobre una ejecucion real ya registrada; nunca un costo generico sin
-  // operacion relacionada.
-  registerCost(reservationCode: string, concept: string, amount: number, actor: string): OperationCost | null {
-    if (!reservationCode || !this.getExecution(reservationCode)) return null;
-    if (!concept || !amount || amount <= 0) return null;
-    const cost: OperationCost = {
-      id: `costo-${Date.now()}`,
-      reservationCode,
-      concept,
-      amount,
-      registeredAt: new Date().toISOString(),
-      registeredBy: actor,
-    };
-    const costs = this.getCosts();
-    costs.push(cost);
-    this.saveCosts(costs);
-    return cost;
+  private mapError(error: unknown): string {
+    const err = error as { status?: number; error?: { message?: string } };
+    if (err?.status === 409) return err.error?.message || 'La reserva no admite esta acción en su estado actual.';
+    if (err?.status === 400) return err.error?.message || 'Revisa los datos ingresados.';
+    if (err?.status === 404) return 'La reserva no existe.';
+    if (isNetworkError(err)) return NETWORK_ERROR_MESSAGE;
+    return 'No fue posible completar la operación.';
   }
 }

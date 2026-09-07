@@ -55,11 +55,11 @@
               <td>#{{ item.reservation.code }}</td>
               <td>{{ item.reservation.date }}</td>
               <td><strong>{{ item.reservation.service }}</strong></td>
-              <td>{{ item.execution.reserved }} viajeros</td>
+              <td>{{ item.reservation.travelers }} viajeros</td>
               <td>{{ executedLabel(item.execution) }}</td>
               <td>{{ item.execution.causal || '—' }}</td>
               <td><span class="operator-status" [class]="item.reservation.statusClass">{{ item.reservation.status }}</span></td>
-              <td>{{ item.execution.registeredBy || '—' }}</td>
+              <td>{{ item.execution.actorId || '—' }}</td>
               <td>
                 <a [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: item.reservation.code }">Ver detalle</a>
                 @if (canFinalize(item.execution)) {

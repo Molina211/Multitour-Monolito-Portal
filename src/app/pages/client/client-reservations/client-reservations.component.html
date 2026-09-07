@@ -16,6 +16,11 @@
 
   <section class="travel-dashboard-section">
     <div class="travel-dashboard-section-head"><h2>Historial de reservas</h2></div>
+    @if (loading()) {
+      <p class="travel-dashboard-copy">Cargando tus reservas...</p>
+    } @else if (error()) {
+      <p class="feedback is-error">{{ error() }}</p>
+    }
     <div class="travel-dashboard-reservation-grid">
       @for (reservation of reservations(); track reservation.code) {
         <article class="travel-dashboard-reservation-card">

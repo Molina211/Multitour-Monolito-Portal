@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   ClientReservationService,
@@ -6,6 +6,8 @@ import {
 } from '../client-reservation.service';
 import { NEW_SERVICE_CATALOG_ID_BY_TYPE, OPERATOR_CATALOG_DEFAULTS, OperatorCatalogService } from '../../operator/operator-catalog.service';
 import { OperatorDiscountService } from '../../operator/operator-discount.service';
+import { ClientProfileService } from '../client-profile.service';
+import { formatOperatorDate } from '../client-tour-catalog.service';
 
 interface PromoCard {
   label: string;
@@ -32,28 +34,6 @@ function parseCatalogDate(text: string | undefined): string {
   return `${match[3]}-${String(monthIndex + 1).padStart(2, '0')}-${match[1].padStart(2, '0')}`;
 }
 
-function formatOperatorDate(iso: string | undefined): string {
-  const [year, month, day] = (iso || '').split('-');
-  const monthName = MONTH_ABBR[Number(month) - 1];
-  if (!year || !day || !monthName) return iso || '';
-  return `${day} ${monthName} ${year}`;
-}
-
-// Mismo mecanismo local ya usado por la landing aprobada (localStorage:
-// multitour-user-profile, escrito por el flujo de creacion de cuenta del Cliente). Si no
-// existe un perfil guardado en este navegador, se usa el mismo nombre de referencia ya
-// aprobado ("Fernanda"), nunca un valor distinto inventado.
-function resolveClientFirstName(): string {
-  try {
-    const raw = localStorage.getItem('multitour-user-profile');
-    const profile = raw ? JSON.parse(raw) : null;
-    const firstName = String(profile?.name || '').trim().split(/\s+/)[0];
-    return firstName || 'Fernanda';
-  } catch {
-    return 'Fernanda';
-  }
-}
-
 @Component({
   selector: 'app-client-dashboard',
   standalone: true,
@@ -61,10 +41,11 @@ function resolveClientFirstName(): string {
   templateUrl: './client-dashboard.component.html',
   styleUrl: './client-dashboard.component.css',
 })
-export class ClientDashboardComponent {
+export class ClientDashboardComponent implements OnInit {
   private readonly reservationService = inject(ClientReservationService);
   private readonly catalogService = inject(OperatorCatalogService);
   private readonly discountService = inject(OperatorDiscountService);
+  private readonly clientProfileService = inject(ClientProfileService);
 
   // BUG corregido: esta pantalla es la PLANTILLA GENERICA multitenant. Antes se resolvia
   // "el primer tenant Activo configurado" en Plataforma, lo que en la practica mostraba el
@@ -75,15 +56,23 @@ export class ClientDashboardComponent {
   // real de Cliente con su tenant e identidad visual configurada.
   tenantName = computed(() => '[Tu Marca]');
 
-  // Nombre del cliente actual: mismo mecanismo local ya usado por la landing aprobada
-  // (localStorage: multitour-user-profile). BACKEND/SESION FALTANTE: sin autenticacion
-  // real, el saludo depende de lo guardado en este navegador.
-  greetingName = computed(() => resolveClientFirstName());
+  // Nombre del cliente actual: encapsulado en ClientProfileService (unico punto que conoce
+  // la clave real de localStorage, multitour-user-profile), en vez de leer el storage
+  // directamente desde el componente. BACKEND/SESION FALTANTE: sin autenticacion real, el
+  // saludo depende de lo guardado en este navegador.
+  greetingName = computed(() => {
+    const firstName = String(this.clientProfileService.profile()?.name || '').trim().split(/\s+/)[0];
+    return firstName || 'Fernanda';
+  });
 
   // Accion rapida "Gastronomía": solo se ofrece si existen servicios de Alimentación
   // realmente activos y vigentes en el MISMO catalogo del Administrador (nunca datos demo
   // para mantenerla visible).
   hasActiveFood = computed(() => this.catalogService.activeCount('alimentacion-catalog-panel') > 0);
+
+  ngOnInit(): void {
+    void this.reservationService.refresh();
+  }
 
   activeReservation = computed(() => this.reservationService.activeReservation());
   activeReservationStatus = computed(() => {

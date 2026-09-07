@@ -1,12 +1,6 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { PLATFORM_OPERATORS_MODULE, PlatformDataService } from '../platform-data.service';
-
-function formatPlatformDateTime(date: Date): string {
-  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-  const datePart = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
-  return `${datePart}, ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-}
+import { PlatformDataService, PlatformTenant } from '../platform-data.service';
 
 @Component({
   selector: 'app-platform-tenant-detail',
@@ -15,13 +9,16 @@ function formatPlatformDateTime(date: Date): string {
   templateUrl: './tenant-detail.component.html',
   styleUrl: './tenant-detail.component.css',
 })
-export class TenantDetailComponent {
+export class TenantDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly platformData = inject(PlatformDataService);
 
-  private readonly tenantId = signal(this.route.snapshot.paramMap.get('tenantId') || '');
+  private readonly tenantId = this.route.snapshot.paramMap.get('tenantId') || '';
 
-  tenant = computed(() => this.platformData.findTenant(this.tenantId()) ?? this.platformData.tenants()[0]);
+  tenant = signal<PlatformTenant | null>(null);
+  loading = signal(true);
+  notFound = signal(false);
+
   isActive = computed(() => this.tenant()?.status === 'Activo');
 
   reasonLabel = computed(() => (this.isActive() ? 'Motivo de la inactivación' : 'Motivo de la reactivación'));
@@ -38,8 +35,27 @@ export class TenantDetailComponent {
 
   feedback = signal('');
   feedbackIsError = signal(false);
+  submitting = signal(false);
 
-  onSubmit(event: Event): void {
+  async ngOnInit(): Promise<void> {
+    // Reutiliza el cache si ya se cargo el listado (venir desde /platform/operators);
+    // si se entra directo por URL, se pide el detalle real a la API.
+    const cached = this.platformData.findTenant(this.tenantId);
+    if (cached) {
+      this.tenant.set(cached);
+      this.loading.set(false);
+      return;
+    }
+    const fetched = await this.platformData.fetchTenant(this.tenantId);
+    this.loading.set(false);
+    if (fetched) {
+      this.tenant.set(fetched);
+    } else {
+      this.notFound.set(true);
+    }
+  }
+
+  async onSubmit(event: Event): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const reason = String(new FormData(form).get('reason') || '').trim();
@@ -49,26 +65,20 @@ export class TenantDetailComponent {
       this.setFeedback('Registra el motivo para conservar la trazabilidad del cambio.', true);
       return;
     }
-    const previousStatus = tenant.status;
-    const nextStatus = previousStatus === 'Activo' ? 'Inactivo' : 'Activo';
-    this.platformData.updateTenantStatus(tenant.id, nextStatus);
-    this.platformData.addAuditEvent({
-      date: formatPlatformDateTime(new Date()),
-      action: nextStatus === 'Activo' ? 'Operador reactivado' : 'Operador inactivado',
-      tenant: tenant.name,
-      tenantId: tenant.id,
-      detail: `${previousStatus} -> ${nextStatus}`,
-      actorName: 'Fernanda Robayo',
-      actorRole: 'Administrador de plataforma',
-      reason,
-      recordAffected: `Estado del operador: ${tenant.id}`,
-      previousValue: previousStatus,
-      newValue: nextStatus,
-      module: PLATFORM_OPERATORS_MODULE,
-      functionalReference: 'Cambio de estado de operador',
-    });
+
+    this.submitting.set(true);
+    this.setFeedback('Guardando...', false);
+    const action = this.isActive() ? 'deactivate' : 'reactivate';
+    const result = await this.platformData.setTenantStatus(tenant.id, action, reason);
+    this.submitting.set(false);
+
+    if (!result.ok) {
+      this.setFeedback(result.message, true);
+      return;
+    }
+    this.tenant.set(result.tenant);
     form.reset();
-    this.setFeedback(`Operador ${nextStatus.toLowerCase()} en esta simulacion.`, false);
+    this.setFeedback(`Operador ${this.isActive() ? 'activo' : 'inactivo'} actualizado.`, false);
   }
 
   private setFeedback(message: string, isError: boolean): void {

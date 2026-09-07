@@ -5,14 +5,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CatalogApiService } from '../../../core/catalog-api.service';
 import { EstablishmentApiService } from '../../../core/establishment-api.service';
 import { CURRENT_TENANT_ID } from '../../../core/tenant.constants';
+import { formatOperatorDate } from '../client-tour-catalog.service';
 
-const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-function formatOperatorDate(iso: string | undefined | null): string {
-  const [year, month, day] = (iso || '').split('-');
-  const monthName = MONTH_ABBR[Number(month) - 1];
-  if (!year || !day || !monthName) return iso || '';
-  return `${day} ${monthName} ${year}`;
-}
 function getTenantToday(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }

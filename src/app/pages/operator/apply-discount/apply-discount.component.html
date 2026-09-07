@@ -9,9 +9,9 @@
     <h2>Descuento adicional autorizado</h2>
     <div class="operator-form-grid">
       <label>Reserva<input readonly type="text" [value]="'#' + code" /></label>
-      <label>Cliente<input readonly type="text" [value]="reservation?.customer || ''" /></label>
-      <label>Servicio<input readonly type="text" [value]="reservation?.service || ''" /></label>
-      <label>Valor actual<input readonly type="text" [value]="reservation?.final || ''" /></label>
+      <label>Cliente<input readonly type="text" [value]="reservation()?.customer || ''" /></label>
+      <label>Servicio<input readonly type="text" [value]="reservation()?.service || ''" /></label>
+      <label>Valor actual<input readonly type="text" [value]="reservation()?.final || ''" /></label>
       <label>
         Descuento adicional (%)
         <input

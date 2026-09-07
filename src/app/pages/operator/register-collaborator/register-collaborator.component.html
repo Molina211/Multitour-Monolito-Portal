@@ -55,9 +55,9 @@
     </div>
   </section>
 
-  <p class="operator-form-feedback" [class.is-valid]="feedback() && !feedbackIsError()">{{ feedback() }}</p>
+  <p class="operator-form-feedback" [class.is-valid]="feedback() && !feedbackIsError()" [class.is-error]="feedbackIsError()">{{ feedback() }}</p>
   <div class="operator-form-actions">
     <a class="operator-outline" routerLink="/operator/collaborators">Cancelar</a>
-    <button class="operator-primary" type="submit">Registrar colaborador</button>
+    <button class="operator-primary" type="submit" [disabled]="submitting()">{{ submitting() ? 'Registrando...' : 'Registrar colaborador' }}</button>
   </div>
 </form>

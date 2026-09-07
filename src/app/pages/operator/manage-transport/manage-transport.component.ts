@@ -1,13 +1,12 @@
-import { Component, inject } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { CatalogRecordDefault, OPERATOR_CATALOG_DEFAULTS, OperatorCatalogService } from '../operator-catalog.service';
+import { CatalogApiService, CatalogItemResponse } from '../../../core/catalog-api.service';
+import { isNetworkError, NETWORK_ERROR_MESSAGE } from '../../../core/http-error.util';
+import { SessionService } from '../../../core/session.service';
 import { OperatorRoleService } from '../operator-role.service';
-
-const CATALOG_ID = 'transporte-catalog-panel';
-
-function formatCurrency(value: number): string {
-  return `$${Math.round(value).toLocaleString('es-CO')}`;
-}
+import { formatCurrency, formatValidity } from '../catalog-view.util';
+import { ManageCatalogRow } from '../manage-catalog/manage-catalog.component';
 
 @Component({
   selector: 'app-operator-manage-transport',
@@ -16,66 +15,78 @@ function formatCurrency(value: number): string {
   templateUrl: './manage-transport.component.html',
   styleUrl: './manage-transport.component.css',
 })
-export class ManageTransportComponent {
-  private readonly catalogService = inject(OperatorCatalogService);
+export class ManageTransportComponent implements OnInit {
+  private readonly catalogApi = inject(CatalogApiService);
+  private readonly sessionService = inject(SessionService);
   private readonly route = inject(ActivatedRoute);
   readonly roleService = inject(OperatorRoleService);
 
-  // "Ver detalle" del Colaborador operativo reutiliza esta MISMA ruta/componente cuando el
-  // recurso fue creado posteriormente por el Administrador (Nuevo servicio), sin pantalla
-  // nueva. Sin "record" en la URL se mantiene el recurso base ya aprobado (mismo patron ya
-  // usado en Gestionar hospedaje / Gestionar alimentación).
-  private readonly recordKey = this.route.snapshot.queryParamMap.get('record') || '';
-  private readonly dynamicResource = this.recordKey
-    ? this.catalogService.newServices().find((resource) => resource.id === this.recordKey && resource.type === 'transport')
-    : undefined;
+  private readonly recordId = this.route.snapshot.queryParamMap.get('record') || '';
 
-  private dynamicResourceFields(resource: NonNullable<typeof this.dynamicResource>): CatalogRecordDefault {
-    return {
-      key: resource.id,
-      active: resource.active,
+  private readonly itemsSignal = signal<CatalogItemResponse[]>([]);
+  loading = signal(true);
+  error = signal('');
+
+  records = computed<ManageCatalogRow[]>(() => {
+    const transport = this.itemsSignal().filter((item) => item.type === 'TRANSPORT');
+    const scoped = this.recordId ? transport.filter((item) => item.catalogItemId === this.recordId) : transport;
+    return scoped.map((item) => ({
+      catalogItemId: item.catalogItemId,
+      active: item.active,
       fields: {
-        name: resource.name,
-        route: resource.route?.trim() || 'Por configurar',
-        capacity: resource.capacity != null ? String(resource.capacity) : '',
-        tariff: formatCurrency(resource.price),
-        cost: resource.cost && resource.cost > 0 ? formatCurrency(resource.cost) : 'Por configurar',
-        validity: `${resource.start} - ${resource.end}`,
-        policy: resource.policy,
+        name: item.name,
+        route: item.route || 'Por configurar',
+        capacity: item.capacity != null ? String(item.capacity) : 'Por configurar',
+        tariff: formatCurrency(item.price),
+        cost: formatCurrency(item.operationalCost),
+        policy: item.policy || 'No aplica',
+        validity: formatValidity(item.validFrom, item.validTo),
       },
-    };
+    }));
+  });
+
+  ngOnInit(): void {
+    const tenantId = this.sessionService.tenantId();
+    if (!tenantId) {
+      this.loading.set(false);
+      this.error.set('No hay una sesión activa.');
+      return;
+    }
+    this.catalogApi.listByTenant(tenantId).subscribe({
+      next: (items) => {
+        this.itemsSignal.set(items);
+        this.loading.set(false);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.error.set(this.mapError(err));
+        this.loading.set(false);
+      },
+    });
   }
 
-  private defaultRecordFields(): CatalogRecordDefault {
-    const base = OPERATOR_CATALOG_DEFAULTS[CATALOG_ID].records[0];
-    // Refleja lo realmente parametrizado por el Administrador (Configurar transporte),
-    // en vez del valor demo, si ya existe una configuracion guardada.
-    const fields = this.catalogService.getServiceFields(CATALOG_ID, base.key) || base.fields;
-    return { ...base, fields };
-  }
-
-  // BUG corregido: sin "record" en la URL solo se mostraba el transporte base, ignorando
-  // transportes creados despues en Nuevo servicio. Ahora sale de la MISMA fuente que el
-  // contador de "Catálogos" (OperatorCatalogService.activeCount).
-  records: CatalogRecordDefault[] = this.dynamicResource
-    ? [this.dynamicResourceFields(this.dynamicResource)]
-    : this.recordKey
-      ? []
-      : [
-          this.defaultRecordFields(),
-          ...this.catalogService.newServices()
-            .filter((resource) => resource.type === 'transport')
-            .map((resource) => this.dynamicResourceFields(resource)),
-        ];
-
-  // Mismo mecanismo para cualquier key (base o dinamica): isActive() ya resuelve el
-  // override real de Activar/Desactivar sin importar el origen del registro.
-  isActive = (key: string, defaultActive: boolean) => this.catalogService.isActive(CATALOG_ID, key, defaultActive);
-
-  // Restriccion base (PDR linea 394/947): el Colaborador operativo consulta catalogos,
-  // pero no crea servicios ni modifica tarifas, costos, capacidad ni estado activo/inactivo.
-  toggle(key: string, current: boolean): void {
+  toggle(catalogItemId: string, currentlyActive: boolean): void {
     if (this.roleService.isColaborador()) return;
-    this.catalogService.setActive(CATALOG_ID, key, !current);
+    const tenantId = this.sessionService.tenantId();
+    if (!tenantId) return;
+
+    const request$ = currentlyActive
+      ? this.catalogApi.deactivate(tenantId, catalogItemId)
+      : this.catalogApi.reactivate(tenantId, catalogItemId);
+
+    request$.subscribe({
+      next: (updated) => {
+        this.itemsSignal.set(
+          this.itemsSignal().map((item) => (item.catalogItemId === updated.catalogItemId ? updated : item)),
+        );
+      },
+      error: (err: HttpErrorResponse) => this.error.set(this.mapError(err)),
+    });
+  }
+
+  private mapError(error: HttpErrorResponse): string {
+    if (error.status === 404) return 'El servicio no existe o fue eliminado.';
+    if (error.status === 409) return 'El operador está inactivo; no admite cambios de catálogo.';
+    if (isNetworkError(error)) return NETWORK_ERROR_MESSAGE;
+    return 'No fue posible cargar o actualizar el catálogo.';
   }
 }

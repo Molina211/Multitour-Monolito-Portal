@@ -11,19 +11,23 @@
   <div class="operator-panel-head">
     <div><p class="operator-eyebrow">Equipo del operador</p><h2>Colaboradores registrados</h2></div>
   </div>
-  @if (!hasCollaborators()) {
+  @if (loading()) {
+    <p class="operator-copy">Cargando colaboradores...</p>
+  } @else if (error()) {
+    <p class="feedback is-error">{{ error() }}</p>
+  } @else if (collaborators().length === 0) {
     <p class="operator-copy">Aún no se han registrado colaboradores.</p>
   } @else {
     <div class="operator-table-wrap">
       <table class="operator-table">
         <thead><tr><th>Nombre</th><th>Correo / usuario de acceso</th><th>Rol</th><th>Acción</th></tr></thead>
         <tbody>
-          @for (collaborator of collaborators(); track collaborator.id) {
+          @for (collaborator of collaborators(); track collaborator.membershipId) {
             <tr>
               <td><strong>{{ collaborator.name }}</strong></td>
               <td>{{ collaborator.email }}</td>
               <td>{{ collaborator.role }}</td>
-              <td><a [routerLink]="['/operator/collaborators/detail']" [queryParams]="{ id: collaborator.id }">Ver detalle</a></td>
+              <td><a [routerLink]="['/operator/collaborators/detail']" [queryParams]="{ id: collaborator.membershipId }">Ver detalle</a></td>
             </tr>
           }
         </tbody>

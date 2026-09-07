@@ -1,11 +1,10 @@
-import { Component, computed, inject } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AssociatedEstablishment, OperatorCatalogService } from '../operator-catalog.service';
+import { EstablishmentApiService, EstablishmentResponse } from '../../../core/establishment-api.service';
+import { isNetworkError, NETWORK_ERROR_MESSAGE } from '../../../core/http-error.util';
+import { SessionService } from '../../../core/session.service';
 import { OperatorRoleService } from '../operator-role.service';
-
-// Mismo catalogId ya usado por Gastronomía Cliente para leer el mismo estado
-// activo/inactivo (ver client-gastronomy.component.ts): sin crear un mecanismo paralelo.
-const ASSOCIATED_ESTABLISHMENTS_CATALOG_ID = 'associated-establishments';
 
 @Component({
   selector: 'app-operator-manage-restaurants',
@@ -14,23 +13,59 @@ const ASSOCIATED_ESTABLISHMENTS_CATALOG_ID = 'associated-establishments';
   templateUrl: './manage-restaurants.component.html',
   styleUrl: './manage-restaurants.component.css',
 })
-export class ManageRestaurantsComponent {
-  private readonly catalogService = inject(OperatorCatalogService);
+export class ManageRestaurantsComponent implements OnInit {
+  private readonly establishmentApi = inject(EstablishmentApiService);
+  private readonly sessionService = inject(SessionService);
   readonly roleService = inject(OperatorRoleService);
 
-  // Restaurantes asociados: mismo registro que ya crea "Nuevo servicio" ->
-  // "Establecimiento asociado" -> "Restaurante asociado", y que ya consume Gastronomía
-  // Cliente. Ninguna fuente nueva: solo se agrega la consulta/activación que faltaba.
-  restaurants = computed<AssociatedEstablishment[]>(() =>
-    this.catalogService.establishments().filter((item) => item.kind === 'restaurant'),
-  );
+  private readonly itemsSignal = signal<EstablishmentResponse[]>([]);
+  loading = signal(true);
+  error = signal('');
 
-  isActive = (id: string) => this.catalogService.isActive(ASSOCIATED_ESTABLISHMENTS_CATALOG_ID, id, true);
+  restaurants = computed(() => this.itemsSignal().filter((item) => item.kind === 'RESTAURANT'));
 
-  // Restricción base (PDR línea 394/947, mismo criterio ya aplicado en manage-food.component):
-  // el Colaborador operativo consulta, pero no activa/inactiva.
-  toggle(id: string, current: boolean): void {
+  ngOnInit(): void {
+    const tenantId = this.sessionService.tenantId();
+    if (!tenantId) {
+      this.loading.set(false);
+      this.error.set('No hay una sesión activa.');
+      return;
+    }
+    this.establishmentApi.listByTenant(tenantId).subscribe({
+      next: (items) => {
+        this.itemsSignal.set(items);
+        this.loading.set(false);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.error.set(this.mapError(err));
+        this.loading.set(false);
+      },
+    });
+  }
+
+  toggle(establishmentId: string, currentlyActive: boolean): void {
     if (this.roleService.isColaborador()) return;
-    this.catalogService.setActive(ASSOCIATED_ESTABLISHMENTS_CATALOG_ID, id, !current);
+    const tenantId = this.sessionService.tenantId();
+    if (!tenantId) return;
+
+    const request$ = currentlyActive
+      ? this.establishmentApi.deactivate(tenantId, establishmentId)
+      : this.establishmentApi.reactivate(tenantId, establishmentId);
+
+    request$.subscribe({
+      next: (updated) => {
+        this.itemsSignal.set(
+          this.itemsSignal().map((item) => (item.establishmentId === updated.establishmentId ? updated : item)),
+        );
+      },
+      error: (err: HttpErrorResponse) => this.error.set(this.mapError(err)),
+    });
+  }
+
+  private mapError(error: HttpErrorResponse): string {
+    if (error.status === 404) return 'El establecimiento no existe o fue eliminado.';
+    if (error.status === 409) return 'El operador está inactivo; no admite cambios.';
+    if (isNetworkError(error)) return NETWORK_ERROR_MESSAGE;
+    return 'No fue posible cargar o actualizar los restaurantes asociados.';
   }
 }

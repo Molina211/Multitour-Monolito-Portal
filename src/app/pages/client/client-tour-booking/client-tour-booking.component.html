@@ -35,10 +35,15 @@
           {{ hasCapacity() ? 'Disponibilidad validada para la cantidad de viajeros seleccionada.' : 'La cantidad seleccionada supera la capacidad disponible (' + maxTravelers() + ' viajeros).' }}
         </p>
 
-        @if (service.associatedTransport; as transportOption) {
-          <div class="travel-catalog-tags">
-            <span>Transporte incluido: {{ transportOption.name }} ({{ transportOption.route }})</span>
-          </div>
+        @if (transportOptions().length > 0) {
+          <label>Transporte asociado (opcional)
+            <select [value]="selectedTransportItemId()" (change)="selectedTransportItemId.set($any($event.target).value)">
+              <option value="">Sin transporte asociado</option>
+              @for (option of transportOptions(); track option.catalogItemId) {
+                <option [value]="option.catalogItemId">{{ option.name }}</option>
+              }
+            </select>
+          </label>
         }
       </article>
 
@@ -68,28 +73,10 @@
         }
       </article>
 
-      @if (service.risk) {
-        <article class="travel-booking-card">
-          <div class="travel-checkout-section-title"><h2>Requisitos de actividad de riesgo</h2></div>
-          <p class="travel-dashboard-copy">Esta actividad requiere consentimiento informado, tipo de sangre, contacto de emergencia y restricciones físicas o movilidad reducida para cada viajero.</p>
-          @for (index of peopleIndexes(); track index) {
-            <article class="travel-companion-card">
-              <div class="travel-checkout-section-title"><h2>{{ peopleLabels()[index] }}</h2></div>
-              <div class="travel-companion-grid">
-                <label>Tipo de sangre<input type="text" required (input)="setRiskBlood(index, $any($event.target).value)" placeholder="Ej. O+" /></label>
-                <label>Contacto de emergencia<input type="text" required (input)="setRiskEmergency(index, $any($event.target).value)" placeholder="Nombre y teléfono" /></label>
-              </div>
-              <label>Restricciones físicas o movilidad reducida<textarea required (input)="setRiskRestrictions(index, $any($event.target).value)" placeholder="Indica restricciones o escribe Ninguna."></textarea></label>
-              <label class="travel-checkout-consent"><input type="checkbox" required (change)="setRiskConsent(index, $any($event.target).checked)" /> Consentimiento informado o exoneración registrado.</label>
-            </article>
-          }
-        </article>
-      }
-
       <article class="travel-booking-card">
         <div class="travel-checkout-section-title"><h2>Condiciones de reserva</h2></div>
         <ul>
-          @for (condition of service.conditions; track condition) {
+          @for (condition of conditions(); track condition) {
             <li>{{ condition }}</li>
           }
         </ul>
@@ -99,7 +86,7 @@
       <article class="travel-booking-card">
         <div class="travel-checkout-section-title"><h2>Metodo de pago</h2></div>
         <div class="travel-checkout-payment-list">
-          @for (method of service.payments; track method) {
+          @for (method of paymentOptions; track method) {
             <label class="travel-checkout-payment-option" [class.is-active]="paymentMethod() === method">
               <input type="radio" name="payment-method" [value]="method" (change)="paymentMethod.set(method)" />
               <div>
@@ -130,23 +117,19 @@
       </article>
 
       <article class="travel-booking-card travel-checkout-pricing">
-        <div>
+        <div class="travel-checkout-pricing-total">
           <span>Valor proyectado</span>
           <strong>{{ projectedLabel() }}</strong>
-        </div>
-        <div>
-          <span>Descuentos aplicables</span>
-          <strong>{{ discountLabel() }}</strong>
-        </div>
-        <div class="travel-checkout-pricing-total">
-          <span>Valor final</span>
-          <strong>{{ finalLabel() }}</strong>
         </div>
       </article>
 
       <p class="travel-dashboard-copy" [class.is-error]="!feedbackIsValid()" aria-live="polite">{{ feedback() }}</p>
-      <button type="submit" class="travel-booking-continue">Crear reserva</button>
+      <button type="submit" class="travel-booking-continue" [disabled]="submitting()">{{ submitting() ? 'Creando reserva...' : 'Crear reserva' }}</button>
     </form>
+  } @else if (loading()) {
+    <section class="travel-checkout-content">
+      <p class="travel-dashboard-copy">Cargando tour...</p>
+    </section>
   } @else {
     <section class="travel-checkout-content">
       <p class="travel-dashboard-copy">Este tour ya no está activo, vigente, o no existe.</p>

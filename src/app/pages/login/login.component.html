@@ -56,10 +56,10 @@
           </div>
         </div>
 
-        <p class="feedback" aria-live="polite">{{ feedback() }}</p>
+        <p class="feedback" [class.is-error]="feedbackIsError()" aria-live="polite">{{ feedback() }}</p>
 
-        <button class="travel-login-submit" type="submit">
-          <span>Iniciar Sesion</span>
+        <button class="travel-login-submit" type="submit" [disabled]="submitting()">
+          <span>{{ submitting() ? 'Ingresando...' : 'Iniciar Sesion' }}</span>
         </button>
       </form>
 

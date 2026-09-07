@@ -2,27 +2,34 @@
 <section class="operator-panel" data-managed-tour-catalog id="alimentacion-catalog-panel">
   <p class="operator-eyebrow">Platos y opciones</p><h2>Oferta gastronómica disponible</h2>
   <p class="operator-copy">Desactivar evita nuevas reservas; el historial existente se conserva.</p>
-  <div class="operator-table-wrap">
-    <table class="operator-table">
-      <thead><tr><th>Restaurante</th><th>Plato del día</th><th>Tarifa base</th><th>Vigencia</th><th>Política de cupo</th><th>Estado</th><th>Acción</th></tr></thead>
-      <tbody>
-        @for (record of records; track record.key) {
-          <tr>
-            <td>{{ record.fields['restaurant'] }}</td>
-            <td>{{ record.fields['dish'] }}</td>
-            <td>{{ record.fields['tariff'] }}</td>
-            <td>{{ record.fields['validity'] }}</td>
-            <td>{{ record.fields['policy'] }}</td>
-            <td><span class="operator-status" [class.is-confirmed]="isActive(record.key, record.active)" [class.is-cancelled]="!isActive(record.key, record.active)">{{ isActive(record.key, record.active) ? 'Activo' : 'Inactivo' }}</span></td>
-            <td>
-              @if (roleService.isAdmin()) {
-                <a class="operator-row-manage">Gestionar</a>
-                <button class="operator-row-toggle" type="button" (click)="toggle(record.key, isActive(record.key, record.active))">{{ isActive(record.key, record.active) ? 'Desactivar' : 'Activar' }}</button>
-              }
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
+
+  @if (loading()) {
+    <p class="operator-copy">Cargando alimentación...</p>
+  } @else if (error()) {
+    <p class="feedback is-error">{{ error() }}</p>
+  } @else if (records().length === 0) {
+    <p class="operator-copy">Todavía no hay opciones de alimentación registradas en el catálogo.</p>
+  } @else {
+    <div class="operator-table-wrap">
+      <table class="operator-table">
+        <thead><tr><th>Plato del día</th><th>Tarifa base</th><th>Vigencia</th><th>Política de cupo</th><th>Estado</th><th>Acción</th></tr></thead>
+        <tbody>
+          @for (record of records(); track record.catalogItemId) {
+            <tr>
+              <td>{{ record.fields['dish'] }}</td>
+              <td>{{ record.fields['tariff'] }}</td>
+              <td>{{ record.fields['validity'] }}</td>
+              <td>{{ record.fields['policy'] }}</td>
+              <td><span class="operator-status" [class.is-confirmed]="record.active" [class.is-cancelled]="!record.active">{{ record.active ? 'Activo' : 'Inactivo' }}</span></td>
+              <td>
+                @if (roleService.isAdmin()) {
+                  <button class="operator-row-toggle" type="button" (click)="toggle(record.catalogItemId, record.active)">{{ record.active ? 'Desactivar' : 'Activar' }}</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
 </section>

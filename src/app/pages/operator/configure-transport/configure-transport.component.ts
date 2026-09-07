@@ -1,29 +1,13 @@
-import { Component, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
-import { OPERATOR_CATALOG_DEFAULTS, OperatorCatalogService } from '../operator-catalog.service';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnInit, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { CatalogApiService, CatalogItemResponse } from '../../../core/catalog-api.service';
+import { isNetworkError, NETWORK_ERROR_MESSAGE } from '../../../core/http-error.util';
+import { parseCOPToNumberOrNull } from '../../../core/money.util';
+import { SessionService } from '../../../core/session.service';
 import { OperatorRoleService } from '../operator-role.service';
 
-const CATALOG_ID = 'transporte-catalog-panel';
-
-// Mismo formato ya usado en Catálogos ("01 sep 2026"), convertido a/desde ISO para los
-// campos de fecha del formulario (igual que parseOperatorDate/formatOperatorDate en la
-// landing aprobada).
-const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-
-function parseCatalogDate(text: string | undefined): string {
-  const match = /^(\d{1,2})\s+([a-z]{3})\s+(\d{4})$/i.exec((text || '').trim());
-  if (!match) return '';
-  const monthIndex = MONTH_ABBR.indexOf(match[2].toLowerCase());
-  if (monthIndex === -1) return '';
-  return `${match[3]}-${String(monthIndex + 1).padStart(2, '0')}-${match[1].padStart(2, '0')}`;
-}
-
-function formatCatalogDate(iso: string): string {
-  const [year, month, day] = (iso || '').split('-');
-  const monthName = MONTH_ABBR[Number(month) - 1];
-  if (!year || !day || !monthName) return '';
-  return `${day} ${monthName} ${year}`;
-}
+const parseAmount = parseCOPToNumberOrNull;
 
 @Component({
   selector: 'app-operator-configure-transport',
@@ -32,57 +16,118 @@ function formatCatalogDate(iso: string): string {
   templateUrl: './configure-transport.component.html',
   styleUrl: './configure-transport.component.css',
 })
-export class ConfigureTransportComponent {
-  private readonly catalogService = inject(OperatorCatalogService);
+export class ConfigureTransportComponent implements OnInit {
+  private readonly catalogApi = inject(CatalogApiService);
+  private readonly sessionService = inject(SessionService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly roleService = inject(OperatorRoleService);
 
-  private readonly baseRecord = OPERATOR_CATALOG_DEFAULTS[CATALOG_ID].records[0];
-  private readonly currentFields = this.catalogService.getServiceFields(CATALOG_ID, this.baseRecord.key) || this.baseRecord.fields;
+  private readonly catalogItemId = this.route.snapshot.queryParamMap.get('item') || '';
+  private item: CatalogItemResponse | null = null;
 
-  // "Por configurar" nunca se precarga como valor real del campo (mismo criterio ya usado
-  // en la landing aprobada): el Administrador ve el campo vacio y define un valor real.
-  private readOrBlank(field: string): string {
-    const value = this.currentFields[field];
-    return value && value !== 'Por configurar' ? value : '';
-  }
+  loading = signal(true);
+  notFound = signal(false);
 
-  name = signal(this.readOrBlank('name') || this.baseRecord.key);
-  route = signal(this.readOrBlank('route'));
-  tariff = signal(this.readOrBlank('tariff'));
-  cost = signal(this.readOrBlank('cost'));
-  capacity = signal(this.readOrBlank('capacity'));
-  policy = signal(this.currentFields['policy'] || 'Sin apartamiento previo');
-  validityStart = signal(parseCatalogDate((this.currentFields['validity'] || '').split(' - ')[0]));
-  validityEnd = signal(parseCatalogDate((this.currentFields['validity'] || '').split(' - ')[1]));
+  name = signal('');
+  route$ = signal('');
+  tariff = signal('');
+  cost = signal('');
+  capacity = signal('');
+  policy = signal('Sin apartamiento previo');
+  validityStart = signal('');
+  validityEnd = signal('');
 
-  isActive = this.catalogService.isActive(CATALOG_ID, this.baseRecord.key, this.baseRecord.active);
+  isActive = false;
   feedback = signal('Los cambios se guardan sobre este mismo recurso; no se crea uno nuevo.');
+  feedbackIsError = signal(false);
+  submitting = signal(false);
 
   readonly readOnly = this.roleService.isColaborador();
 
+  ngOnInit(): void {
+    const tenantId = this.sessionService.tenantId();
+    if (!this.catalogItemId || !tenantId) {
+      this.loading.set(false);
+      this.notFound.set(true);
+      return;
+    }
+    this.catalogApi.getById(tenantId, this.catalogItemId).subscribe({
+      next: (item) => {
+        this.item = item;
+        this.isActive = item.active;
+        this.name.set(item.name || '');
+        this.route$.set(item.route || '');
+        this.tariff.set(item.price != null ? String(item.price) : '');
+        this.cost.set(item.operationalCost != null ? String(item.operationalCost) : '');
+        this.capacity.set(item.capacity != null ? String(item.capacity) : '');
+        this.policy.set(item.policy || 'Sin apartamiento previo');
+        this.validityStart.set(item.validFrom || '');
+        this.validityEnd.set(item.validTo || '');
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.notFound.set(true);
+      },
+    });
+  }
+
   onSubmit(event: Event): void {
     event.preventDefault();
-    if (this.readOnly) return;
+    if (this.readOnly || !this.item) return;
 
-    const updated: Record<string, string> = { ...this.currentFields };
-    const setOrKeep = (field: string, value: string) => {
-      updated[field] = value.trim() || 'Por configurar';
-    };
-    setOrKeep('name', this.name());
-    setOrKeep('route', this.route());
-    setOrKeep('tariff', this.tariff());
-    setOrKeep('cost', this.cost());
-    setOrKeep('capacity', this.capacity());
-    updated['policy'] = this.policy();
+    const tenantId = this.sessionService.tenantId();
+    if (!tenantId) return;
 
-    const start = this.validityStart();
-    const end = this.validityEnd();
-    if (start && end) {
-      updated['validity'] = `${formatCatalogDate(start)} - ${formatCatalogDate(end)}`;
+    const name = this.name().trim();
+    if (!name) {
+      this.setFeedback('El nombre del recurso es obligatorio.', true);
+      return;
+    }
+    const capacityValue = parseAmount(this.capacity());
+    if (capacityValue == null) {
+      this.setFeedback('La capacidad es obligatoria.', true);
+      return;
     }
 
-    this.catalogService.setServiceFields(CATALOG_ID, this.baseRecord.key, updated);
-    this.router.navigateByUrl('/operator/catalog/transport');
+    this.submitting.set(true);
+    this.setFeedback('Guardando...', false);
+
+    this.catalogApi
+      .update(tenantId, this.catalogItemId, {
+        name,
+        route: this.route$().trim() || null,
+        capacity: capacityValue,
+        price: parseAmount(this.tariff()) ?? undefined,
+        operationalCost: parseAmount(this.cost()),
+        policy: this.policy(),
+        validFrom: this.validityStart() || null,
+        validTo: this.validityEnd() || null,
+      })
+      .subscribe({
+        next: () => {
+          this.submitting.set(false);
+          this.setFeedback('Cambios guardados.', false);
+          window.setTimeout(() => this.router.navigateByUrl('/operator/catalog/transport'), 600);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.submitting.set(false);
+          this.setFeedback(this.mapError(err), true);
+        },
+      });
+  }
+
+  private mapError(error: HttpErrorResponse): string {
+    if (error.status === 400) return error.error?.message || 'Revisa los datos ingresados.';
+    if (error.status === 404) return 'El recurso ya no existe.';
+    if (error.status === 409) return 'El operador está inactivo; no admite cambios de catálogo.';
+    if (isNetworkError(error)) return NETWORK_ERROR_MESSAGE;
+    return 'No fue posible guardar los cambios.';
+  }
+
+  private setFeedback(message: string, isError: boolean): void {
+    this.feedback.set(message);
+    this.feedbackIsError.set(isError);
   }
 }

@@ -1,9 +1,11 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { MonthlyConsolidation, OperatorCashService } from '../operator-cash.service';
+import { formatCOP } from '../../../core/money.util';
+import { OperatorCashService } from '../operator-cash.service';
 
-function formatCOP(value: number): string {
-  return `$${new Intl.NumberFormat('es-CO').format(Math.round(value))}`;
+function currentPeriod(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
 @Component({
@@ -13,11 +15,26 @@ function formatCOP(value: number): string {
   templateUrl: './cash-monthly.component.html',
   styleUrl: './cash-monthly.component.css',
 })
-export class CashMonthlyComponent {
+export class CashMonthlyComponent implements OnInit {
   private readonly cashService = inject(OperatorCashService);
 
-  periods = computed<MonthlyConsolidation[]>(() => this.cashService.getMonthlyConsolidation());
+  loading = this.cashService.loading;
+  period = signal(currentPeriod());
+  periods = this.cashService.consolidation;
   hasClosures = computed(() => this.periods().length > 0);
+
+  async ngOnInit(): Promise<void> {
+    await this.load();
+  }
+
+  onPeriodChange(value: string): void {
+    this.period.set(value);
+    void this.load();
+  }
+
+  private async load(): Promise<void> {
+    await this.cashService.refreshMonthlyConsolidation(this.period());
+  }
 
   formatAmount(value: number): string {
     return formatCOP(value);

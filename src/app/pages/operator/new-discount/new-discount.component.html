@@ -5,9 +5,14 @@
     <p class="operator-eyebrow">Parámetros del descuento</p><h2>Configura la promoción</h2>
     <div class="operator-form-grid">
       <label>Servicio o producto
-        <select name="service" required>
-          @for (option of serviceOptions; track option.key) {
-            <option [value]="option.key">{{ option.label }}</option>
+        <select name="service" required [disabled]="loading()">
+          @if (loading()) {
+            <option value="">Cargando catálogo...</option>
+          } @else if (catalogItems().length === 0) {
+            <option value="">No hay servicios activos en el catálogo</option>
+          }
+          @for (item of catalogItems(); track item.catalogItemId) {
+            <option [value]="item.catalogItemId">{{ item.name }}</option>
           }
         </select>
       </label>
@@ -33,6 +38,6 @@
   <p class="operator-form-feedback">{{ feedback() }}</p>
   <div class="operator-form-actions">
     <a class="operator-outline" routerLink="/operator/discounts">Cancelar</a>
-    <button class="operator-primary" type="submit">Crear descuento</button>
+    <button class="operator-primary" type="submit" [disabled]="submitting()">{{ submitting() ? 'Publicando...' : 'Crear descuento' }}</button>
   </div>
 </form>

@@ -4,25 +4,18 @@
   <section>
     <p class="platform-eyebrow">01. Identidad del operador</p>
     <h2>Datos del operador</h2>
-    <p class="platform-section-copy">El identificador es único y mantiene aislada la operación de esta empresa dentro de Multitour.</p>
+    <p class="platform-section-copy">El identificador es único y mantiene aislada la operación de esta empresa dentro de Multitour. Todo operador nuevo inicia en estado Activo (POST /api/tenants no admite un estado inicial distinto).</p>
     <div class="platform-form-grid">
       <label><span>Nombre comercial</span><input name="commercialName" type="text" placeholder="Ej. Andes Vivo" /></label>
       <label><span>Identificador único</span><input name="tenantId" type="text" placeholder="Ej. andes-vivo" /></label>
-      <label><span>Estado inicial</span>
-        <select name="status">
-          <option value="Activo">Activo</option>
-          <option value="Inactivo">Inactivo</option>
-        </select>
-      </label>
     </div>
   </section>
 
   <section>
     <p class="platform-eyebrow">02. Responsable inicial</p>
     <h2>Primer Administrador</h2>
-    <p class="platform-section-copy">Todo operador debe iniciar con al menos un Administrador.</p>
+    <p class="platform-section-copy">Todo operador debe iniciar con al menos un Administrador. El contrato actual del Backend solo identifica a este Administrador por correo y contraseña (sin nombre propio todavía).</p>
     <div class="platform-form-grid">
-      <label><span>Nombre completo</span><input name="adminName" type="text" placeholder="Ej. Laura Gomez" /></label>
       <label><span>Correo electrónico</span><input name="adminEmail" type="email" placeholder="laura@andesvivo.co" /></label>
       <label>
         <span>Contraseña inicial</span>

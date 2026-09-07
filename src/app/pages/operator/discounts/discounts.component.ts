@@ -1,6 +1,23 @@
-import { Component, computed, inject } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { OperatorDiscountService } from '../operator-discount.service';
+import { forkJoin } from 'rxjs';
+import { DiscountApiService, DiscountResponse } from '../../../core/discount-api.service';
+import { CatalogApiService } from '../../../core/catalog-api.service';
+import { isNetworkError, NETWORK_ERROR_MESSAGE } from '../../../core/http-error.util';
+import { SessionService } from '../../../core/session.service';
+
+interface DiscountRow {
+  discountId: string;
+  serviceLabel: string;
+  percentage: number;
+  validTo: string;
+  baseLabel: string;
+  priority: number;
+  stackable: boolean;
+  cap: number | null;
+  active: boolean;
+}
 
 @Component({
   selector: 'app-operator-discounts',
@@ -9,23 +26,53 @@ import { OperatorDiscountService } from '../operator-discount.service';
   templateUrl: './discounts.component.html',
   styleUrl: './discounts.component.css',
 })
-export class DiscountsComponent {
-  private readonly discountService = inject(OperatorDiscountService);
+export class DiscountsComponent implements OnInit {
+  private readonly discountApi = inject(DiscountApiService);
+  private readonly catalogApi = inject(CatalogApiService);
+  private readonly sessionService = inject(SessionService);
   private readonly router = inject(Router);
 
-  discounts = this.discountService.discounts;
+  private readonly discountsSignal = signal<DiscountResponse[]>([]);
+  private readonly catalogNameByIdSignal = signal<Map<string, string>>(new Map());
+  loading = signal(true);
+  error = signal('');
 
-  // Si el descuento legado "Tour Montañas" ya fue editado y quedó como registro
-  // estructurado, la tarjeta estática se retira para no duplicar la promoción.
-  hasLegacyOverride = computed(() => this.discounts().some((discount) => discount.id === 'legacy-tour-montanas'));
-  totalActive = computed(() => (this.hasLegacyOverride() ? 0 : 1) + this.discounts().length);
+  discounts = computed<DiscountRow[]>(() =>
+    this.discountsSignal().map((discount) => ({
+      discountId: discount.discountId,
+      serviceLabel: this.catalogNameByIdSignal().get(discount.catalogItemId) || discount.catalogItemId,
+      percentage: discount.percentage,
+      validTo: discount.validTo,
+      baseLabel: discount.base === 'subtotal' ? 'subtotal resultante del descuento anterior' : 'valor original',
+      priority: discount.priority,
+      stackable: discount.stackable,
+      cap: discount.cap,
+      active: discount.active,
+    })),
+  );
+  totalActive = computed(() => this.discounts().filter((d) => d.active).length);
 
-  baseLabel(base: string): string {
-    return base === 'subtotal' ? 'subtotal resultante del descuento anterior' : 'valor original';
-  }
-
-  stackableLabel(stackable: string): string {
-    return stackable === 'si' ? 'acumulable' : 'no acumulable';
+  ngOnInit(): void {
+    const tenantId = this.sessionService.tenantId();
+    if (!tenantId) {
+      this.loading.set(false);
+      this.error.set('No hay una sesión activa.');
+      return;
+    }
+    forkJoin({
+      discounts: this.discountApi.listByTenant(tenantId),
+      catalog: this.catalogApi.listByTenant(tenantId),
+    }).subscribe({
+      next: ({ discounts, catalog }) => {
+        this.discountsSignal.set(discounts);
+        this.catalogNameByIdSignal.set(new Map(catalog.map((item) => [item.catalogItemId, item.name])));
+        this.loading.set(false);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.error.set(isNetworkError(err) ? NETWORK_ERROR_MESSAGE : 'No fue posible cargar los descuentos.');
+        this.loading.set(false);
+      },
+    });
   }
 
   editDiscount(id: string): void {

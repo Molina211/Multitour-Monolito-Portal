@@ -11,24 +11,26 @@
     <div><p class="operator-eyebrow">Solicitudes</p><h2>Solicitudes registradas</h2></div>
     <span class="operator-status is-pending">{{ requests().length }} solicitud{{ requests().length === 1 ? '' : 'es' }}</span>
   </div>
+  @if (loading()) {
+    <p class="operator-copy">Cargando solicitudes...</p>
+  }
   <div class="operator-table-wrap">
     <table class="operator-table">
-      <thead><tr><th>Reserva</th><th>Cliente</th><th>Motivo</th><th>Monto</th><th>Estado</th><th>Fecha</th><th>Acción</th></tr></thead>
+      <thead><tr><th>Reserva</th><th>Cliente</th><th>Motivo</th><th>Monto</th><th>Estado</th><th>Acción</th></tr></thead>
       <tbody>
-        @for (request of requests(); track request.id) {
+        @for (request of requests(); track request.code) {
           <tr>
-            <td><a class="operator-reservation-link" [routerLink]="['/operator/payments/refunds/detail']" [queryParams]="{ id: request.id }">#{{ request.reservationCode }}</a></td>
+            <td><a class="operator-reservation-link" [routerLink]="['/operator/payments/refunds/detail']" [queryParams]="{ reservation: request.code }">#{{ request.code }}</a></td>
             <td>{{ request.customer }}</td>
-            <td>{{ request.reason }}</td>
-            <td>{{ request.amount }}</td>
-            <td><span class="operator-status is-pending">{{ request.status }}</span></td>
-            <td>{{ request.requestedAt }}</td>
-            <td><a [routerLink]="['/operator/payments/refunds/detail']" [queryParams]="{ id: request.id }">{{ actionLabel(request) }}</a></td>
+            <td>{{ request.refundOrigin?.causal }}</td>
+            <td>{{ request.refundOrigin?.potentialAmount }}</td>
+            <td><span class="operator-status is-pending">{{ request.refundOrigin?.status }}</span></td>
+            <td><a [routerLink]="['/operator/payments/refunds/detail']" [queryParams]="{ reservation: request.code }">{{ actionLabel(request) }}</a></td>
           </tr>
         }
       </tbody>
     </table>
-    @if (!hasRequests()) {
+    @if (requests().length === 0 && !loading()) {
       <p class="operator-copy">No hay solicitudes de devolución registradas.</p>
     }
   </div>

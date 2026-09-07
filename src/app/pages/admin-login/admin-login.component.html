@@ -28,8 +28,8 @@
             <button class="travel-login-visibility" type="button" (click)="togglePasswordVisibility()">Ver</button>
           </div>
         </div>
-        <p class="feedback" aria-live="polite">{{ feedback() }}</p>
-        <button class="travel-login-submit" type="submit"><span>Ingresar a plataforma</span></button>
+        <p class="feedback" [class.is-error]="feedbackIsError()" aria-live="polite">{{ feedback() }}</p>
+        <button class="travel-login-submit" type="submit" [disabled]="submitting()"><span>{{ submitting() ? 'Ingresando...' : 'Ingresar a plataforma' }}</span></button>
       </form>
       <p class="travel-recover-back"><a routerLink="/login">Volver al acceso general</a></p>
     </div>

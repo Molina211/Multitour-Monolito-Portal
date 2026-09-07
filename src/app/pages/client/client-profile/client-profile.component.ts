@@ -1,7 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ClientProfileService } from '../client-profile.service';
 import { ClientReservationService, normalizeClientReservationStatus } from '../client-reservation.service';
+import { SessionService } from '../../../core/session.service';
 
 @Component({
   selector: 'app-client-profile',
@@ -10,11 +11,16 @@ import { ClientReservationService, normalizeClientReservationStatus } from '../c
   templateUrl: './client-profile.component.html',
   styleUrl: './client-profile.component.css',
 })
-export class ClientProfileComponent {
+export class ClientProfileComponent implements OnInit {
   private readonly profileService = inject(ClientProfileService);
   private readonly reservationService = inject(ClientReservationService);
+  private readonly sessionService = inject(SessionService);
 
   tenantName = computed(() => '[Tu Marca]');
+
+  ngOnInit(): void {
+    void this.reservationService.refresh();
+  }
 
   // Datos de la cuenta / Datos personales: SOLO informacion existente. Sin perfil real
   // guardado en este navegador (BACKEND/SESION FALTANTE), cada campo muestra "No
@@ -81,5 +87,10 @@ export class ClientProfileComponent {
     this.editing.set(false);
     this.feedback.set('Perfil actualizado en esta simulación.');
     this.feedbackIsValid.set(true);
+  }
+
+  // BUG corregido: "Cerrar sesión" solo navegaba a /login sin invalidar la sesión real.
+  logout(): void {
+    this.sessionService.clear();
   }
 }

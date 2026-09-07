@@ -16,33 +16,15 @@
     <div><p class="operator-eyebrow">Reservas activas</p><h2>Seguimiento de reservas</h2></div>
     <button class="operator-table-toggle" type="button" [attr.aria-expanded]="showAll()" (click)="toggleScope()">{{ showAll() ? 'Ver reservas activas' : 'Ver todas las reservas' }}</button>
   </div>
+  @if (loading()) {
+    <p class="operator-copy">Cargando reservas...</p>
+  } @else if (error()) {
+    <p class="feedback is-error">{{ error() }}</p>
+  }
   <div class="operator-table-wrap">
     <table class="operator-table">
       <thead><tr><th>Reserva</th><th>Cliente</th><th>Servicio</th><th>Estado</th><th>Saldo</th><th>Acción</th></tr></thead>
       <tbody>
-        @if (draft(); as created) {
-          <tr>
-            <td><a class="operator-reservation-link" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: created.code }">#{{ created.code }}</a><small>{{ created.date }} · {{ created.travelers }} viajeros</small></td>
-            <td>{{ created.customer }}</td>
-            <td>{{ created.service }}</td>
-            <td><span class="operator-status" [class]="created.statusClass">{{ created.status }}</span></td>
-            <td>{{ created.balance }}@if (created.hasAdditionalDiscount) {<br /><small>Descuento adicional aplicado</small>}</td>
-            <td>
-              @if (additionalDiscountMode && isEligibleForAdditionalDiscount(created)) {
-                <a [routerLink]="['/operator/reservations/apply-discount']" [queryParams]="{ reservation: created.code }">Aplicar descuento</a>
-              } @else {
-                <a [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: created.code }">Ver detalle</a>
-                @if (created.action === 'Gestionar pago') {
-                  · <a [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: created.code }">Gestionar pago</a>
-                } @else if (created.action === 'Ver operación') {
-                  · <a routerLink="/operator/operations">Ver operación</a>
-                } @else if (created.action) {
-                  · <a>{{ created.action }}</a>
-                }
-              }
-            </td>
-          </tr>
-        }
         @for (reservation of reservations(); track reservation.code) {
           @if (!isArchived(reservation) || showAll()) {
             <tr>

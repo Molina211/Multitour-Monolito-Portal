@@ -1,156 +1,123 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CashMovement, CashMovementType, OperatorCashService } from '../operator-cash.service';
+import { CashMovementLabel } from '../../../core/cash-api.service';
+import { formatCOP } from '../../../core/money.util';
+import { OperatorCashService } from '../operator-cash.service';
 import { OperatorRoleService } from '../operator-role.service';
-
-function formatCOP(value: number): string {
-  return `$${new Intl.NumberFormat('es-CO').format(Math.round(value))}`;
-}
-
-function formatSignedCOP(value: number): string {
-  return value < 0 ? `-${formatCOP(Math.abs(value))}` : formatCOP(value);
-}
-
-interface CashMovementRow {
-  time: string;
-  type: CashMovementType;
-  concept: string;
-  displayAmount: string;
-  responsible: string;
-}
 
 @Component({
   selector: 'app-operator-cash',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, DatePipe],
   templateUrl: './cash.component.html',
   styleUrl: './cash.component.css',
 })
-export class CashComponent {
+export class CashComponent implements OnInit {
   private readonly cashService = inject(OperatorCashService);
   readonly roleService = inject(OperatorRoleService);
 
-  private get currentActor(): string {
-    return this.roleService.roleLabel();
-  }
-
-  private readonly refresh = signal(0);
-
-  day = computed(() => {
-    this.refresh();
-    return this.cashService.getDay();
-  });
-  closed = computed(() => this.day().status === 'cerrada');
+  loading = this.cashService.loading;
+  error = this.cashService.error;
+  day = this.cashService.current;
+  notOpenToday = this.cashService.notOpenToday;
+  closed = computed(() => this.day()?.status === 'CERRADA');
 
   totals = computed(() => {
-    this.refresh();
-    return this.cashService.computeTotals(this.day());
+    const day = this.day();
+    return day ? this.cashService.computeTotals(day) : { ingresos: 0, pagosOperacionales: 0, gastos: 0 };
   });
 
-  dayStatusLabel = computed(() => (this.closed() ? 'Jornada cerrada' : 'Jornada abierta'));
-  totalHeadline = computed(
-    () => `${formatCOP(this.totals().total)} disponibles ${this.closed() ? 'al cierre de la jornada' : 'al cierre parcial'}.`,
-  );
+  dayStatusLabel = computed(() => (this.closed() ? 'Jornada cerrada' : this.notOpenToday() ? 'Sin jornada abierta hoy' : 'Jornada abierta'));
+  totalHeadline = computed(() => {
+    const day = this.day();
+    return day ? `${formatCOP(day.totalAmount)} disponibles ${this.closed() ? 'al cierre de la jornada' : 'al cierre parcial'}.` : '';
+  });
 
-  baseLabel = computed(() => formatCOP(this.day().base));
+  baseLabel = computed(() => formatCOP(this.day()?.baseAmount ?? 0));
   ingresosLabel = computed(() => formatCOP(this.totals().ingresos));
   pagosOperacionalesLabel = computed(() => formatCOP(this.totals().pagosOperacionales));
   gastosLabel = computed(() => formatCOP(this.totals().gastos));
-  devolucionesLabel = computed(() => formatCOP(this.totals().devoluciones));
 
-  movementRows = computed<CashMovementRow[]>(() => {
-    const day = this.day();
-    const refundMovements = this.totals().refundMovements;
-    const own: CashMovementRow[] = day.movements.map((m: CashMovement) => ({
-      time: m.time,
-      type: m.type,
-      concept: m.concept,
-      displayAmount: formatSignedCOP(m.amount),
-      responsible: m.responsible,
-    }));
-    const refunds: CashMovementRow[] = refundMovements.map((m) => ({
-      time: m.time,
-      type: m.type,
-      concept: m.concept,
-      displayAmount: m.displayAmount,
-      responsible: m.responsible,
-    }));
-    return [...own, ...refunds];
-  });
-
-  // Regla 5 (PDR linea 767/1021): solo el Administrador del operador puede modificar la
-  // base diaria.
-  adjustPanelOpen = signal(false);
-  currentBase = computed(() => this.day().base);
-  adjustFeedback = signal('Registra la nueva base diaria parametrizada para hoy.');
-  adjustFeedbackValid = signal(false);
-
-  openAdjust(): void {
-    // Regla 5 (PDR linea 767/1021): solo el Administrador del operador puede modificar la
-    // base diaria.
-    if (this.closed() || this.roleService.isColaborador()) return;
-    this.adjustFeedback.set('Registra la nueva base diaria parametrizada para hoy.');
-    this.adjustFeedbackValid.set(false);
-    this.adjustPanelOpen.set(true);
+  async ngOnInit(): Promise<void> {
+    await this.cashService.refreshToday();
   }
 
-  cancelAdjust(): void {
-    this.adjustPanelOpen.set(false);
+  openPanelOpen = signal(false);
+  openFeedback = signal('');
+  openFeedbackValid = signal(false);
+  submittingOpen = signal(false);
+
+  openOpenPanel(): void {
+    if (this.roleService.isColaborador()) return;
+    this.openFeedback.set('Registra la base diaria para abrir la jornada.');
+    this.openFeedbackValid.set(false);
+    this.openPanelOpen.set(true);
   }
 
-  onAdjustSubmit(event: Event): void {
+  cancelOpen(): void {
+    this.openPanelOpen.set(false);
+  }
+
+  async onOpenSubmit(event: Event): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
-    const rawValue = String(new FormData(form).get('base') ?? '');
-    const value = Number(rawValue);
-    if (rawValue === '' || Number.isNaN(value) || value < 0) {
-      this.adjustFeedback.set('Registra una base diaria válida.');
-      this.adjustFeedbackValid.set(false);
+    const value = Number(new FormData(form).get('base'));
+    if (Number.isNaN(value) || value < 0) {
+      this.openFeedback.set('Registra una base diaria válida.');
+      this.openFeedbackValid.set(false);
       return;
     }
-    this.cashService.adjustBase(value);
-    this.adjustFeedback.set('Base diaria actualizada correctamente.');
-    this.adjustFeedbackValid.set(true);
-    this.adjustPanelOpen.set(false);
-    this.refresh.update((n) => n + 1);
+    this.submittingOpen.set(true);
+    const result = await this.cashService.open(value);
+    this.submittingOpen.set(false);
+    if (!result.ok) {
+      this.openFeedback.set(result.message);
+      this.openFeedbackValid.set(false);
+      return;
+    }
+    this.openFeedback.set('Jornada abierta correctamente.');
+    this.openFeedbackValid.set(true);
+    this.openPanelOpen.set(false);
   }
 
-  movementFeedback = signal(
-    'Registra los movimientos de la jornada. Las devoluciones se agregan automáticamente cuando quedan efectivamente ejecutadas.',
-  );
+  movementFeedback = signal('Registra los movimientos de la jornada.');
   movementFeedbackValid = signal(false);
+  submittingMovement = signal(false);
 
-  onMovementSubmit(event: Event): void {
+  async onMovementSubmit(event: Event): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const data = new FormData(form);
-    const type = String(data.get('type') || '') as CashMovementType | '';
+    const type = String(data.get('type') || '') as CashMovementLabel | '';
     const concept = String(data.get('concept') || '').trim();
     const amount = Number(data.get('amount'));
-    if (!type || type === 'Devolución' || !concept || !amount || amount <= 0) {
+    if (!type || !concept || !amount || amount <= 0) {
       this.movementFeedback.set('Completa tipo, concepto y un valor mayor a $0 para registrar el movimiento.');
       this.movementFeedbackValid.set(false);
       return;
     }
-    this.cashService.registerMovement(type, concept, amount, this.currentActor);
+    this.submittingMovement.set(true);
+    const result = await this.cashService.registerMovement(type, concept, amount);
+    this.submittingMovement.set(false);
+    if (!result.ok) {
+      this.movementFeedback.set(result.message);
+      this.movementFeedbackValid.set(false);
+      return;
+    }
     form.reset();
     this.movementFeedback.set('Movimiento registrado correctamente.');
     this.movementFeedbackValid.set(true);
-    this.refresh.update((n) => n + 1);
   }
 
-  // Regla 7 (PDR linea 767/773): cerrar caja conserva el cierre y el historico de
-  // movimientos; nunca borra informacion.
-  closeDay(): void {
+  closingDay = signal(false);
+
+  async closeDay(): Promise<void> {
     if (this.closed()) return;
-    const { duplicate } = this.cashService.closeDay(this.currentActor);
-    if (duplicate) {
-      this.movementFeedback.set('Ya existe un cierre registrado para esta fecha. Usa Historial de caja para registrar una corrección.');
-      this.movementFeedbackValid.set(false);
-    } else {
-      this.movementFeedback.set('Caja cerrada correctamente. El cierre e histórico quedaron conservados.');
-      this.movementFeedbackValid.set(true);
-    }
-    this.refresh.update((n) => n + 1);
+    this.closingDay.set(true);
+    const result = await this.cashService.closeDay();
+    this.closingDay.set(false);
+    this.movementFeedback.set(result.ok ? 'Caja cerrada correctamente. El cierre e histórico quedaron conservados.' : result.message);
+    this.movementFeedbackValid.set(result.ok);
   }
 }

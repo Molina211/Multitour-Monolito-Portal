@@ -1,6 +1,11 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { OperatorCatalogService } from '../operator-catalog.service';
+import { CatalogApiService, CatalogItemRequest, CatalogItemType } from '../../../core/catalog-api.service';
+import { EstablishmentApiService, EstablishmentKind } from '../../../core/establishment-api.service';
+import { isNetworkError, NETWORK_ERROR_MESSAGE } from '../../../core/http-error.util';
+import { SessionService } from '../../../core/session.service';
 
 type ServiceKind = 'operational' | 'establishment';
 type EstablishmentType = 'hotel' | 'restaurant';
@@ -19,6 +24,9 @@ const ESTABLISHMENT_IMAGE_LABELS: Record<EstablishmentType, string> = {
 })
 export class NewServiceComponent {
   private readonly catalogService = inject(OperatorCatalogService);
+  private readonly catalogApi = inject(CatalogApiService);
+  private readonly establishmentApi = inject(EstablishmentApiService);
+  private readonly sessionService = inject(SessionService);
   private readonly router = inject(Router);
 
   kind = signal<ServiceKind>('operational');
@@ -27,6 +35,7 @@ export class NewServiceComponent {
   previewSrc = signal('');
   previewReady = signal(false);
   feedback = signal('Completa la información para publicar el producto en el catálogo del cliente.');
+  submitting = signal(false);
 
   // Tour <-> Transporte (RN-TRA-001/002): solo aplica cuando el Tipo es "Tour o actividad".
   includesTransport = signal<'no' | 'si'>('no');
@@ -105,14 +114,31 @@ export class NewServiceComponent {
         this.feedback.set('Completa el nombre comercial y adjunta una imagen del establecimiento.');
         return;
       }
-      this.catalogService.addAssociatedEstablishment({
-        id: `establishment-${Date.now()}`,
-        kind: this.establishmentType(),
-        name: String(data.get('name') || '').trim(),
-        description: String(data.get('establishmentInfo') || '').trim(),
-        image: this.previewSrc(),
-      });
-      this.router.navigateByUrl('/operator/catalog');
+      const tenantId = this.sessionService.tenantId();
+      if (!tenantId) {
+        this.feedback.set('No hay una sesión activa.');
+        return;
+      }
+      const kind: EstablishmentKind = this.establishmentType() === 'restaurant' ? 'RESTAURANT' : 'HOTEL';
+      this.submitting.set(true);
+      this.feedback.set('Publicando...');
+      this.establishmentApi
+        .create(tenantId, {
+          kind,
+          name: String(data.get('name') || '').trim(),
+          description: String(data.get('establishmentInfo') || '').trim() || null,
+          image: this.previewSrc() || null,
+        })
+        .subscribe({
+          next: () => {
+            this.submitting.set(false);
+            this.router.navigateByUrl('/operator/catalog');
+          },
+          error: (err: HttpErrorResponse) => {
+            this.submitting.set(false);
+            this.feedback.set(this.mapCreateError(err));
+          },
+        });
       return;
     }
 
@@ -129,36 +155,78 @@ export class NewServiceComponent {
       this.feedback.set('Selecciona un transporte activo para asociarlo a este Tour, o marca "No" si no incluye transporte.');
       return;
     }
-    const id = `resource-${Date.now()}`;
-    this.catalogService.addNewService({
-      id,
+
+    const tenantId = this.sessionService.tenantId();
+    if (!tenantId) {
+      this.feedback.set('No hay una sesión activa.');
+      return;
+    }
+
+    const typeByForm: Record<string, CatalogItemType> = {
+      tour: 'TOUR',
+      lodging: 'LODGING',
+      food: 'FOOD',
+      transport: 'TRANSPORT',
+    };
+    const catalogItemType = typeByForm[type];
+    if (!catalogItemType) {
+      this.feedback.set('Selecciona un tipo de servicio válido.');
+      return;
+    }
+
+    const request: CatalogItemRequest = {
+      type: catalogItemType,
       name: String(data.get('name') || '').trim(),
-      type,
       price: Number(data.get('price') || 0),
       capacity: Number(data.get('capacity') || 0) || null,
-      restrictions: String(data.get('restrictions') || '').trim(),
-      start,
-      end,
-      policy: String(data.get('policy') || ''),
-      image: this.previewSrc(),
-      active: true,
+      restrictions: String(data.get('restrictions') || '').trim() || null,
+      validFrom: start || null,
+      validTo: end || null,
+      policy: String(data.get('policy') || '') || null,
+      image: this.previewSrc() || null,
       // RN-TRA-001 (trayecto): solo tiene sentido para type === 'transport'; no se inventa
       // uno para el resto de tipos ni si el campo quedo vacio.
-      route: type === 'transport' ? String(data.get('route') || '').trim() || undefined : undefined,
+      route: type === 'transport' ? String(data.get('route') || '').trim() || null : null,
+      // BLOQUEO/INCOMPATIBILIDAD: este formulario no tiene un campo propio de "costo
+      // operativo" al crear un Transporte (solo existe mas abajo, ligado al vinculo
+      // Tour->Transporte, que el Backend no modela). Se crea en null y se completa despues
+      // desde Configurar transporte (PATCH), que si expone ese campo.
+      operationalCost: null,
+    };
+
+    this.submitting.set(true);
+    this.feedback.set('Publicando...');
+    this.catalogApi.create(tenantId, request).subscribe({
+      next: (created) => {
+        this.submitting.set(false);
+        // RN-TRA-001/002: el vinculo Tour<->Transporte y su tarifa por persona NO existen
+        // en el contrato Backend (CatalogItemRequest/Response no tienen un campo para
+        // asociar un catalog-item con otro) - se mantiene esta relacion SOLO en el mock
+        // local (OperatorCatalogService), documentado como BLOQUEO, no resuelto aqui.
+        if (type === 'tour' && this.includesTransport() === 'si') {
+          const transportKey = this.selectedTransportKey();
+          this.catalogService.updateTransportResourceConfig(transportKey, {
+            route: this.transportRouteInput(),
+            capacity: this.transportCapacityInput() ? Number(this.transportCapacityInput()) : null,
+            cost: this.transportCostInput() ? Number(this.transportCostInput()) : 0,
+          });
+          const tariffOverride = this.transportTariffInput() ? Number(this.transportTariffInput()) : undefined;
+          this.catalogService.setTourTransport(created.catalogItemId, transportKey, tariffOverride);
+        }
+        this.router.navigateByUrl('/operator/catalog');
+      },
+      error: (err: HttpErrorResponse) => {
+        this.submitting.set(false);
+        this.feedback.set(this.mapCreateError(err));
+      },
     });
-    if (type === 'tour' && this.includesTransport() === 'si') {
-      const transportKey = this.selectedTransportKey();
-      // Trayecto/capacidad/costo: configuracion global del recurso de Transporte (mismo
-      // mecanismo que Configurar transporte, reutilizado aqui para no duplicar logica).
-      this.catalogService.updateTransportResourceConfig(transportKey, {
-        route: this.transportRouteInput(),
-        capacity: this.transportCapacityInput() ? Number(this.transportCapacityInput()) : null,
-        cost: this.transportCostInput() ? Number(this.transportCostInput()) : 0,
-      });
-      // Tarifa por persona: especifica de este Tour (RN-TRA-002).
-      const tariffOverride = this.transportTariffInput() ? Number(this.transportTariffInput()) : undefined;
-      this.catalogService.setTourTransport(id, transportKey, tariffOverride);
-    }
-    this.router.navigateByUrl('/operator/catalog');
+  }
+
+  private mapCreateError(error: HttpErrorResponse): string {
+    if (error.status === 400) return error.error?.message || 'Revisa los datos ingresados (por ejemplo, la capacidad es obligatoria para Hospedaje).';
+    if (error.status === 404) return 'El operador no existe.';
+    if (error.status === 409) return 'El operador está inactivo; no admite altas de catálogo.';
+    if (isNetworkError(error)) return NETWORK_ERROR_MESSAGE;
+    return 'No fue posible publicar el servicio.';
   }
 }

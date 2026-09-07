@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PlatformDataService } from '../platform-data.service';
 
@@ -9,8 +9,14 @@ import { PlatformDataService } from '../platform-data.service';
   templateUrl: './operators.component.html',
   styleUrl: './operators.component.css',
 })
-export class OperatorsComponent {
+export class OperatorsComponent implements OnInit {
   private readonly platformData = inject(PlatformDataService);
 
   tenants = this.platformData.tenants;
+  loading = this.platformData.tenantsLoading;
+  error = this.platformData.tenantsError;
+
+  ngOnInit(): void {
+    void this.platformData.loadTenants();
+  }
 }

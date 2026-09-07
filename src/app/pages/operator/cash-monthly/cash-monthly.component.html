@@ -6,8 +6,14 @@
   Construida a partir de los cierres diarios registrados; la base diaria no se suma nuevamente como ingreso del período.
 </p>
 
-@if (!hasClosures()) {
-  <p class="operator-copy">Aún no hay cierres registrados para consolidar.</p>
+<label>Período (mes)
+  <input type="month" [value]="period()" (change)="onPeriodChange($any($event.target).value)" />
+</label>
+
+@if (loading()) {
+  <p class="operator-copy">Cargando consolidación...</p>
+} @else if (!hasClosures()) {
+  <p class="operator-copy">Aún no hay cierres registrados para consolidar en este período.</p>
 }
 
 @for (item of periods(); track item.period) {

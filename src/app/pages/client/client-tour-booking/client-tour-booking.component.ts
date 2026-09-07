@@ -1,20 +1,45 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { ClientTourCatalogService, ClientTourOption, formatOperatorDate } from '../client-tour-catalog.service';
+import { forkJoin } from 'rxjs';
+import { DEFAULT_TOUR_PAYMENT_METHODS, GENERIC_TOUR_CONDITION, formatOperatorDate } from '../client-tour-catalog.service';
 import { ClientReservationService, CompanionRecord } from '../client-reservation.service';
+import { CatalogApiService, CatalogItemResponse } from '../../../core/catalog-api.service';
+import { GetCatalogForBookingUseCase } from '../../../core/catalog/application/get-catalog-for-booking.use-case';
+import { isNetworkError, NETWORK_ERROR_MESSAGE } from '../../../core/http-error.util';
+import { formatCOP } from '../../../core/money.util';
+import { PAYMENT_METHOD_FROM_LABEL } from '../../../core/payment-api.service';
+import { CreateReservationUseCase } from '../../../core/reservation/application/create-reservation.use-case';
+import { RegisterReservationPaymentUseCase } from '../../../core/reservation/application/register-reservation-payment.use-case';
+import { SessionService } from '../../../core/session.service';
 
 function normalizeDocument(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-function formatCurrency(value: number): string {
-  return `$${Math.round(value).toLocaleString('es-CO')}`;
-}
+const formatCurrency = formatCOP;
 
-// Misma fecha de referencia ya usada/aprobada en el resto del Portal
-// (operator-reservation.service.ts / client-dashboard.component.ts), zona America/Bogota.
-function getTenantToday(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const PAYMENT_METHOD_TO_BACKEND = PAYMENT_METHOD_FROM_LABEL;
+
+// BLOQUEO/INCOMPATIBILIDAD (Fase 10): CatalogItemResponse.java NO tiene "risk" (actividad
+// de riesgo), "payments" (medios de pago por tour) ni "conditions" (condiciones por tour) -
+// esos campos solo existian en el mock local (KNOWN_TOUR_DETAILS). Con el catalogo real:
+// - la seccion de "Requisitos de actividad de riesgo" queda deshabilitada para todos los
+//   tours (no hay forma de saber desde la API cuales son de riesgo);
+// - se muestran los 3 medios de pago reales validos (Transferencia/Efectivo/Abono) para
+//   cualquier tour, en vez de una lista distinta por tour;
+// - las condiciones muestran la "policy" real del tour (o un texto generico si no tiene).
+// Tampoco existe "discount" en este contrato: el descuento se aplica aparte, despues de
+// crear la reserva, via POST .../apply-discount (Fase 12, exclusivo de Administrador) - no
+// se inventa un descuento automatico al crear.
+interface BookingTour {
+  catalogItemId: string;
+  name: string;
+  price: number;
+  capacity: number | null;
+  start: string;
+  end: string;
+  policy: string | null;
 }
 
 @Component({
@@ -24,18 +49,25 @@ function getTenantToday(): string {
   templateUrl: './client-tour-booking.component.html',
   styleUrl: './client-tour-booking.component.css',
 })
-export class ClientTourBookingComponent {
-  private readonly tourCatalogService = inject(ClientTourCatalogService);
+export class ClientTourBookingComponent implements OnInit {
+  private readonly catalogApi = inject(CatalogApiService);
+  private readonly getCatalogForBooking = inject(GetCatalogForBookingUseCase);
+  private readonly createReservation = inject(CreateReservationUseCase);
+  private readonly registerReservationPayment = inject(RegisterReservationPaymentUseCase);
   private readonly reservationService = inject(ClientReservationService);
+  private readonly sessionService = inject(SessionService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   tenantName = computed(() => '[Tu Marca]');
 
   readonly tourKey = this.route.snapshot.queryParamMap.get('tour') || '';
-  tour = computed<ClientTourOption | null>(() => this.tourCatalogService.getActiveTourService(this.tourKey));
+  loading = signal(true);
+  tour = signal<BookingTour | null>(null);
+  transportOptions = signal<CatalogItemResponse[]>([]);
+  selectedTransportItemId = signal('');
 
-  today = getTenantToday();
+  today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
   departure = signal('');
   travelers = signal(1);
@@ -49,25 +81,19 @@ export class ClientTourBookingComponent {
   depositAmount = signal(0);
   feedback = signal('Selecciona la fecha del servicio y completa los datos para continuar.');
   feedbackIsValid = signal(false);
+  submitting = signal(false);
+
+  // Medios de pago y condicion: reales pero genericos (ver BLOQUEO arriba). "risk" ya no
+  // existe en datos reales, asi que la seccion de riesgo nunca se activa.
+  paymentOptions = DEFAULT_TOUR_PAYMENT_METHODS;
+  conditions = computed(() => [this.tour()?.policy || GENERIC_TOUR_CONDITION]);
 
   requiredCompanions = computed(() => Math.max(0, this.travelers() - 1));
   companionIndexes = computed(() => Array.from({ length: this.requiredCompanions() }, (_, index) => index));
 
-  // Cupo maximo reservable: el del servicio (cuando esta parametrizado) y, si tiene
-  // transporte asociado, tambien el de ese transporte — el MENOR de ambos aplica (ej. Tour
-  // permite 60 y transporte permite 50 => maximo 50).
-  maxTravelers = computed(() => {
-    const tour = this.tour();
-    if (!tour) return Infinity;
-    const byService = tour.capacity != null ? tour.capacity : Infinity;
-    const byTransport = tour.associatedTransport?.capacity != null ? tour.associatedTransport.capacity : Infinity;
-    return Math.min(byService, byTransport);
-  });
+  maxTravelers = computed(() => this.tour()?.capacity ?? Infinity);
   hasCapacity = computed(() => this.travelers() <= this.maxTravelers());
 
-  // CORRECCION PDR v1.7.1: la fecha del servicio se valida contra su vigencia de oferta
-  // (activo + rango de fechas, ambas fechas inclusive), nunca contra una lista de salidas
-  // parametrizadas aparte.
   dateWithinValidity = computed(() => {
     const tour = this.tour();
     const date = this.departure();
@@ -83,18 +109,42 @@ export class ClientTourBookingComponent {
     const tour = this.tour();
     return tour ? tour.price * this.travelers() : 0;
   });
-  discountValue = computed(() => {
-    const tour = this.tour();
-    return tour ? tour.price * this.travelers() * tour.discount : 0;
-  });
-  finalValue = computed(() => this.projected() - this.discountValue());
+  finalValue = this.projected;
 
   projectedLabel = computed(() => formatCurrency(this.projected()));
-  discountLabel = computed(() => (this.discountValue() ? `-${formatCurrency(this.discountValue())}` : '$0'));
   finalLabel = computed(() => formatCurrency(this.finalValue()));
 
   startLabel = computed(() => formatOperatorDate(this.tour()?.start));
   endLabel = computed(() => formatOperatorDate(this.tour()?.end));
+
+  ngOnInit(): void {
+    const tenantId = this.sessionService.tenantId();
+    if (!tenantId || !this.tourKey) {
+      this.loading.set(false);
+      return;
+    }
+    forkJoin({
+      tour: this.getCatalogForBooking.execute(tenantId, this.tourKey),
+      catalog: this.catalogApi.listByTenant(tenantId),
+    }).subscribe({
+      next: ({ tour, catalog }) => {
+        if (tour.type === 'TOUR' && tour.active) {
+          this.tour.set({
+            catalogItemId: tour.catalogItemId,
+            name: tour.name,
+            price: tour.price,
+            capacity: tour.capacity,
+            start: tour.validFrom || '',
+            end: tour.validTo || '',
+            policy: tour.policy,
+          });
+        }
+        this.transportOptions.set(catalog.filter((item) => item.type === 'TRANSPORT' && item.active));
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false),
+    });
+  }
 
   setDeparture(value: string): void {
     this.departure.set(value);
@@ -125,47 +175,6 @@ export class ClientTourBookingComponent {
     next[index] = value;
     this.companionBirthDates.set(next);
   }
-
-  // Requisitos de actividad de riesgo (RN-597): un set de campos por persona (titular +
-  // acompañantes), solo cuando el servicio esta marcado como actividad de riesgo.
-  riskBlood = signal<string[]>([]);
-  riskEmergency = signal<string[]>([]);
-  riskRestrictions = signal<string[]>([]);
-  riskConsent = signal<boolean[]>([]);
-  peopleCount = computed(() => 1 + this.requiredCompanions());
-  peopleIndexes = computed(() => Array.from({ length: this.peopleCount() }, (_, index) => index));
-  peopleLabels = computed(() => ['Titular', ...this.companionIndexes().map((index) => `Acompañante ${index + 1}`)]);
-
-  setRiskBlood(index: number, value: string): void {
-    const next = [...this.riskBlood()];
-    next[index] = value;
-    this.riskBlood.set(next);
-  }
-  setRiskEmergency(index: number, value: string): void {
-    const next = [...this.riskEmergency()];
-    next[index] = value;
-    this.riskEmergency.set(next);
-  }
-  setRiskRestrictions(index: number, value: string): void {
-    const next = [...this.riskRestrictions()];
-    next[index] = value;
-    this.riskRestrictions.set(next);
-  }
-  setRiskConsent(index: number, value: boolean): void {
-    const next = [...this.riskConsent()];
-    next[index] = value;
-    this.riskConsent.set(next);
-  }
-  riskComplete = computed(() => {
-    const tour = this.tour();
-    if (!tour?.risk) return true;
-    for (let index = 0; index < this.peopleCount(); index += 1) {
-      if (!this.riskBlood()[index]?.trim() || !this.riskEmergency()[index]?.trim() || !this.riskRestrictions()[index]?.trim() || !this.riskConsent()[index]) {
-        return false;
-      }
-    }
-    return true;
-  });
 
   onDepositAmountChange(value: string): void {
     this.depositAmount.set(Number(value) || 0);
@@ -205,11 +214,6 @@ export class ClientTourBookingComponent {
       this.feedbackIsValid.set(false);
       return false;
     }
-    if (!this.riskComplete()) {
-      this.feedback.set('Completa los requisitos de actividad de riesgo para cada viajero.');
-      this.feedbackIsValid.set(false);
-      return false;
-    }
     if (!this.conditionsAccepted()) {
       this.feedback.set('Debes aceptar las condiciones aplicables para continuar.');
       this.feedbackIsValid.set(false);
@@ -233,65 +237,76 @@ export class ClientTourBookingComponent {
   onSubmit(event: Event): void {
     event.preventDefault();
     if (!this.validate()) return;
-
     const tour = this.tour();
-    if (!tour) return;
+    const tenantId = this.sessionService.tenantId();
+    if (!tour || !tenantId) return;
 
     const companions: CompanionRecord[] = this.companionIndexes().map((index) => ({
       name: (this.companionNames()[index] || '').trim(),
       document: (this.companionDocuments()[index] || '').trim(),
       birthDate: this.companionBirthDates()[index] || '',
     }));
-    const code = `#RES-${Date.now().toString().slice(-6)}`;
-    const projected = this.projected();
-    const discount = this.discountValue();
-    const finalValue = this.finalValue();
-    const transportSelected = tour.associatedTransport ? `${tour.associatedTransport.name} — ${tour.associatedTransport.route}` : '';
 
-    // PDR v1.7.1 (lineas 628-630): ninguna modalidad confirma la reserva automaticamente al
-    // crearla. Transferencia requiere soporte + validacion operativa; Efectivo requiere
-    // condicion parametrizada o dinero recibido; Abono requiere el abono minimo
-    // parametrizado. Sin esas condiciones cumplidas aqui, la reserva queda Pendiente de pago.
-    const base = {
-      code,
-      experience: tour.name,
-      startDate: formatOperatorDate(this.departure()),
-      endDate: formatOperatorDate(this.departure()),
-      travelers: String(this.travelers()),
-      status: 'Pendiente de pago',
-      budget: formatCurrency(finalValue),
-      projectedValue: formatCurrency(projected),
-      discountValue: discount ? `-${formatCurrency(discount)}` : '$0',
-      finalValue: formatCurrency(finalValue),
-      tourKey: this.tourKey,
-      savedAt: this.today,
-      holderDocument: this.holderDocument().trim(),
-      companions,
-      transportSelected,
-      method: this.paymentMethod(),
-    };
+    this.submitting.set(true);
+    this.feedback.set('Creando reserva...');
 
-    if (this.paymentMethod() === 'Abono') {
-      this.reservationService.recordReservation({
-        ...base,
-        paymentStatus: 'Parcial',
-        paid: formatCurrency(this.depositAmount()),
-        balance: formatCurrency(finalValue - this.depositAmount()),
-        paymentHistory: [{ amount: this.depositAmount(), date: new Date().toISOString() }],
+    this.createReservation
+      .execute(tenantId, {
+        projectedValue: this.projected(),
+        reservedServices: [
+          {
+            serviceReference: tour.catalogItemId,
+            partySize: this.travelers(),
+            scheduledDate: this.departure(),
+            transportItemId: this.selectedTransportItemId() || null,
+          },
+        ],
+        holderDocument: this.holderDocument().trim(),
+        companions,
+      })
+      .subscribe({
+        next: (reservation) => this.afterCreate(tenantId, reservation.reservationId),
+        error: (err: HttpErrorResponse) => {
+          this.submitting.set(false);
+          this.feedback.set(this.mapCreateError(err));
+          this.feedbackIsValid.set(false);
+        },
       });
-      this.router.navigateByUrl('/client/reservations');
+  }
+
+  private afterCreate(tenantId: string, reservationId: string): void {
+    const method = this.paymentMethod();
+    const backendMethod = PAYMENT_METHOD_TO_BACKEND[method];
+
+    // Transferencia: la reserva se crea "Pendiente de pago"; el comprobante y el registro
+    // del pago se hacen en la pantalla siguiente (client-reservation-payment, Fase 13).
+    if (method === 'Transferencia' || !backendMethod) {
+      this.submitting.set(false);
+      this.router.navigateByUrl('/client/reservations/payment');
       return;
     }
 
-    if (this.paymentMethod() === 'Efectivo') {
-      this.reservationService.recordReservation({ ...base, paymentStatus: 'Sin pago' });
-      this.router.navigateByUrl('/client/reservations');
-      return;
-    }
+    const amount = method === 'Abono' ? this.depositAmount() : this.finalValue();
+    this.registerReservationPayment
+      .execute(tenantId, reservationId, { method: backendMethod, amount, supportReference: null })
+      .subscribe({
+        next: () => {
+          this.submitting.set(false);
+          this.router.navigateByUrl('/client/reservations');
+        },
+        error: () => {
+          // La reserva ya quedo creada; el pago se puede intentar de nuevo desde Mis reservas.
+          this.submitting.set(false);
+          this.router.navigateByUrl('/client/reservations');
+        },
+      });
+  }
 
-    // Transferencia: se registra "Sin pago" y se dirige a la pantalla de pago para ver
-    // instrucciones, datos bancarios y subir el comprobante (sin confirmar automaticamente).
-    this.reservationService.recordReservation({ ...base, paymentStatus: 'Sin pago' });
-    this.router.navigateByUrl('/client/reservations/payment');
+  private mapCreateError(error: HttpErrorResponse): string {
+    if (error.status === 401 || error.status === 403) return 'Tu sesión no permite crear esta reserva.';
+    if (error.status === 400) return error.error?.message || 'Revisa los datos ingresados.';
+    if (error.status === 409) return 'El operador está inactivo; no admite nuevas reservas.';
+    if (isNetworkError(error)) return NETWORK_ERROR_MESSAGE;
+    return 'No fue posible crear la reserva.';
   }
 }

@@ -1,11 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CashClosure, OperatorCashService, formatTenantDateTime } from '../operator-cash.service';
+import { CashRegisterResponse } from '../../../core/cash-api.service';
+import { formatCOP } from '../../../core/money.util';
+import { OperatorCashService, formatTenantDateTime } from '../operator-cash.service';
 import { OperatorRoleService } from '../operator-role.service';
-
-function formatCOP(value: number): string {
-  return `$${new Intl.NumberFormat('es-CO').format(Math.round(value))}`;
-}
 
 @Component({
   selector: 'app-operator-cash-history',
@@ -14,25 +12,29 @@ function formatCOP(value: number): string {
   templateUrl: './cash-history.component.html',
   styleUrl: './cash-history.component.css',
 })
-export class CashHistoryComponent {
+export class CashHistoryComponent implements OnInit {
   private readonly cashService = inject(OperatorCashService);
   readonly roleService = inject(OperatorRoleService);
-  private readonly refresh = signal(0);
 
-  closures = computed<CashClosure[]>(() => {
-    this.refresh();
-    return this.cashService.getClosures().slice().reverse();
-  });
+  loading = this.cashService.loading;
+  closures = this.cashService.history;
   hasClosures = computed(() => this.closures().length > 0);
 
   correctionFeedback = signal<Record<string, { message: string; valid: boolean }>>({});
+  submittingCorrection = signal<Record<string, boolean>>({});
+
+  async ngOnInit(): Promise<void> {
+    await this.cashService.refreshHistory();
+  }
 
   formatAmount(value: number): string {
     return formatCOP(value);
   }
 
-  // La fecha/hora del cierre y sus correcciones deben mostrarse SIEMPRE en la zona horaria
-  // local del tenant (America/Bogota), nunca en la del navegador de quien consulta.
+  totalsFor(closure: CashRegisterResponse) {
+    return this.cashService.computeTotals(closure);
+  }
+
   formatDateTime(isoDate: string): string {
     return formatTenantDateTime(isoDate);
   }
@@ -46,10 +48,7 @@ export class CashHistoryComponent {
     );
   }
 
-  // Regla 8 (PDR linea 773/776): toda correccion posterior al cierre queda restringida al
-  // Administrador del operador, exige justificacion obligatoria y trazabilidad, y NUNCA
-  // sobrescribe los valores originales del cierre (se agrega como historial adicional).
-  onCorrectionSubmit(event: Event, closureId: string): void {
+  async onCorrectionSubmit(event: Event, closure: CashRegisterResponse): Promise<void> {
     event.preventDefault();
     if (this.roleService.isColaborador()) return;
     const form = event.currentTarget as HTMLFormElement;
@@ -57,16 +56,17 @@ export class CashHistoryComponent {
     if (!justification) {
       this.correctionFeedback.update((state) => ({
         ...state,
-        [closureId]: { message: 'Registra la justificación obligatoria de la corrección.', valid: false },
+        [closure.cashRegisterId]: { message: 'Registra la justificación obligatoria de la corrección.', valid: false },
       }));
       return;
     }
-    this.cashService.addCorrection(closureId, justification, this.roleService.roleLabel());
+    this.submittingCorrection.update((s) => ({ ...s, [closure.cashRegisterId]: true }));
+    const result = await this.cashService.addCorrection(closure.cashRegisterId, justification);
+    this.submittingCorrection.update((s) => ({ ...s, [closure.cashRegisterId]: false }));
     form.reset();
     this.correctionFeedback.update((state) => ({
       ...state,
-      [closureId]: { message: 'Corrección registrada correctamente.', valid: true },
+      [closure.cashRegisterId]: { message: result.ok ? 'Corrección registrada correctamente.' : result.message, valid: result.ok },
     }));
-    this.refresh.update((n) => n + 1);
   }
 }

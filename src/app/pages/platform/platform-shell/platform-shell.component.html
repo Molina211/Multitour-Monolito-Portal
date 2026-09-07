@@ -7,7 +7,7 @@
       <a routerLink="/platform/operators" routerLinkActive="is-active">Operadores</a>
       <a routerLink="/platform/audit" routerLinkActive="is-active">Auditoría</a>
     </nav>
-    <a class="platform-signout" routerLink="/login">Cerrar sesion</a>
+    <a class="platform-signout" routerLink="/login" (click)="logout()">Cerrar sesion</a>
   </aside>
 
   <section class="platform-content">

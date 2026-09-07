@@ -1,7 +1,8 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { CatalogApiService, CatalogItemResponse } from '../../../core/catalog-api.service';
+import { CatalogItemResponse } from '../../../core/catalog-api.service';
+import { GetCatalogForBookingUseCase } from '../../../core/catalog/application/get-catalog-for-booking.use-case';
 import { CURRENT_TENANT_ID } from '../../../core/tenant.constants';
 import { formatOperatorDate } from '../client-tour-catalog.service';
 
@@ -13,7 +14,7 @@ import { formatOperatorDate } from '../client-tour-catalog.service';
   styleUrl: './client-tour-detail.component.css',
 })
 export class ClientTourDetailComponent implements OnInit {
-  private readonly catalogApi = inject(CatalogApiService);
+  private readonly getCatalogForBooking = inject(GetCatalogForBookingUseCase);
   private readonly route = inject(ActivatedRoute);
 
   tenantName = computed(() => '[Tu Marca]');
@@ -43,7 +44,7 @@ export class ClientTourDetailComponent implements OnInit {
       this.loadingSignal.set(false);
       return;
     }
-    this.catalogApi.getById(CURRENT_TENANT_ID, this.itemIdParam).subscribe({
+    this.getCatalogForBooking.execute(CURRENT_TENANT_ID, this.itemIdParam).subscribe({
       next: (item) => {
         this.tourSignal.set(item);
         this.loadingSignal.set(false);

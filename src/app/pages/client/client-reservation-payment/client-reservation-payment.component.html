@@ -44,8 +44,15 @@
         <div class="travel-transfer-reference-pill"><strong>{{ booking.code }}</strong></div>
       </article>
 
+      <article class="travel-booking-card">
+        <div class="travel-checkout-section-title"><h2>Referencia del comprobante</h2></div>
+        <input type="text" placeholder="Ej. numero de comprobante o transaccion" [value]="supportReference()" (input)="supportReference.set($any($event.target).value)" />
+      </article>
+
+      <p class="feedback" [class.is-error]="feedbackIsError()" aria-live="polite">{{ feedback() }}</p>
+
       <div class="travel-payment-success-actions">
-        <button type="button" class="travel-booking-continue" (click)="uploadSupport()">Subir comprobante</button>
+        <button type="button" class="travel-booking-continue" [disabled]="submitting()" (click)="uploadSupport()">{{ submitting() ? 'Enviando...' : 'Subir comprobante' }}</button>
         <a class="travel-payment-secondary" routerLink="/client/reservations">Volver a mis reservas</a>
       </div>
     </section>

@@ -74,10 +74,10 @@
           </ul>
         </div>
 
-        <p class="feedback" aria-live="polite">{{ feedback() }}</p>
+        <p class="feedback" [class.is-error]="feedbackIsError()" aria-live="polite">{{ feedback() }}</p>
 
-        <button class="travel-login-submit" type="submit">
-          <span>Registrarse</span>
+        <button class="travel-login-submit" type="submit" [disabled]="submitting()">
+          <span>{{ submitting() ? 'Creando cuenta...' : 'Registrarse' }}</span>
         </button>
       </form>
 

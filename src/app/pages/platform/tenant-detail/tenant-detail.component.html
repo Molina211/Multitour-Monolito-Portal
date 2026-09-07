@@ -8,11 +8,7 @@
     <div>
       <span class="platform-status" [class.is-active]="isActive()" [class.is-inactive]="!isActive()">{{ tenant.status }}</span>
       <p>Identificador: {{ tenant.id }}</p>
-    </div>
-    <div class="platform-tenant-hero-admin">
-      <span>Primer Administrador</span>
-      <strong>{{ tenant.adminName }}</strong>
-      <small>{{ tenant.adminEmail }}</small>
+      <p>Creado: {{ tenant.createdAt }}</p>
     </div>
   </section>
 
@@ -27,7 +23,7 @@
           <textarea name="reason" rows="3" [placeholder]="reasonPlaceholder()"></textarea>
         </label>
         <p class="feedback" [class.is-error]="feedbackIsError()" [class.is-success]="!feedbackIsError() && feedback()" aria-live="polite">{{ feedback() }}</p>
-        <button [class]="isActive() ? 'platform-danger' : 'platform-primary'" type="submit">{{ submitLabel() }}</button>
+        <button [class]="isActive() ? 'platform-danger' : 'platform-primary'" type="submit" [disabled]="submitting()">{{ submitting() ? 'Guardando...' : submitLabel() }}</button>
       </form>
     </article>
 
@@ -41,4 +37,11 @@
       </ul>
     </article>
   </section>
+} @else if (loading()) {
+  <p class="platform-table-note">Cargando operador...</p>
+} @else if (notFound()) {
+  <header class="platform-topbar">
+    <div><p class="platform-eyebrow">Detalle del operador</p><h1>Operador no encontrado</h1></div>
+    <a class="platform-link" routerLink="/platform/operators">Volver a operadores</a>
+  </header>
 }

@@ -9,24 +9,28 @@
 
 <section class="operator-panel">
   <div class="operator-panel-head">
-    <div><p class="operator-eyebrow">Vigentes</p><h2>Promociones activas</h2></div>
+    <div><p class="operator-eyebrow">Vigentes</p><h2>Promociones</h2></div>
     <span class="operator-status is-confirmed">{{ totalActive() }} activa{{ totalActive() === 1 ? '' : 's' }}</span>
   </div>
-  @if (!hasLegacyOverride()) {
-    <div class="operator-promo">
-      <div><span>TOUR MONTAÑAS</span><strong>20% de descuento</strong><p>Vigente hasta el 30 sep 2026. Base de cálculo: valor proyectado del tour.</p></div>
-      <button type="button" (click)="editDiscount('legacy-tour-montanas')">Editar parámetros</button>
-    </div>
-  }
-  @for (discount of discounts(); track discount.id) {
-    <div class="operator-promo">
-      <div>
-        <span>{{ (discount.serviceLabel || discount.service).toUpperCase() }}</span>
-        <strong>{{ discount.percentage }}% de descuento</strong>
-        <p>Vigente hasta el {{ discount.end }}. Base de cálculo: {{ baseLabel(discount.base) }}. Prioridad {{ discount.priority }}, {{ stackableLabel(discount.stackable) }}.{{ discount.cap ? ' Tope: ' + discount.cap + '.' : '' }}</p>
+
+  @if (loading()) {
+    <p class="operator-copy">Cargando descuentos...</p>
+  } @else if (error()) {
+    <p class="feedback is-error">{{ error() }}</p>
+  } @else if (discounts().length === 0) {
+    <p class="operator-copy">Todavía no hay descuentos registrados.</p>
+  } @else {
+    @for (discount of discounts(); track discount.discountId) {
+      <div class="operator-promo">
+        <div>
+          <span>{{ discount.serviceLabel.toUpperCase() }}</span>
+          <strong>{{ discount.percentage }}% de descuento</strong>
+          <span class="operator-status" [class.is-confirmed]="discount.active" [class.is-cancelled]="!discount.active">{{ discount.active ? 'Activo' : 'Inactivo' }}</span>
+          <p>Vigente hasta el {{ discount.validTo }}. Base de cálculo: {{ discount.baseLabel }}. Prioridad {{ discount.priority }}, {{ discount.stackable ? 'acumulable' : 'no acumulable' }}.{{ discount.cap ? ' Tope: ' + discount.cap + '.' : '' }}</p>
+        </div>
+        <button type="button" (click)="editDiscount(discount.discountId)">Editar parámetros</button>
       </div>
-      <button type="button" (click)="editDiscount(discount.id)">Editar parámetros</button>
-    </div>
+    }
   }
 </section>
 

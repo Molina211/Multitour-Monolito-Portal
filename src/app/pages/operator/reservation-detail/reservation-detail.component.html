@@ -1,8 +1,8 @@
-@if (reservation; as reservation) {
+@if (reservation(); as reservation) {
   <header class="operator-topbar">
     <div><p class="operator-eyebrow">Consulta de reserva</p><h1>Detalle de reserva</h1></div>
     <div class="operator-form-actions">
-      @if (canCancelOrModify) {
+      @if (canCancelOrModify()) {
         <a class="operator-outline" [routerLink]="['/operator/reservations/cancel-or-modify']" [queryParams]="{ reservation: code }">Cancelar o modificar reserva</a>
       }
       <a class="operator-outline" routerLink="/operator/reservations">Volver a reservas</a>
@@ -43,27 +43,27 @@
     </section>
   </div>
 
-  @if (adjustment; as adjustment) {
+  @if (reservation.hasAdditionalDiscount) {
     <section class="operator-panel">
       <p class="operator-eyebrow">Decisión excepcional</p>
-      <h2>Descuento adicional aplicado</h2>
+      <h2>Descuento aplicado</h2>
       <div class="operator-detail-list">
-        <div><span>Descuento adicional</span><strong>{{ adjustment.percentage }}%</strong></div>
-        <div><span>Motivo</span><strong>{{ adjustment.reason }}</strong></div>
-        <div><span>Valor anterior</span><strong>{{ previousValue() }}</strong></div>
-        <div><span>Valor descontado</span><strong>{{ discountedAmount() }}</strong></div>
+        <div><span>Descuento aplicado</span><strong>{{ reservation.discount }}</strong></div>
+        <div><span>Valor proyectado</span><strong>{{ reservation.projected }}</strong></div>
         <div><span>Valor final</span><strong>{{ reservation.final }}</strong></div>
       </div>
     </section>
   }
 
-  @if (showCancellationHistory && cancellation; as cancellation) {
+  @if (showCancellationHistory() && cancellationReason(); as reason) {
     <section class="operator-panel">
       <p class="operator-eyebrow">Historial</p>
       <h2>Cancelación registrada</h2>
       <div class="operator-detail-list">
-        <div><span>Causal</span><strong>{{ cancellation.causal }}</strong></div>
-        <div><span>Fecha de registro</span><strong>{{ cancellation.registeredAt | date: 'medium' }}</strong></div>
+        <div><span>Causal</span><strong>{{ reason }}</strong></div>
+        @if (cancelledAt(); as cancelledAt) {
+          <div><span>Fecha de registro</span><strong>{{ cancelledAt | date: 'medium' }}</strong></div>
+        }
       </div>
     </section>
   }
@@ -110,7 +110,7 @@
   <section class="operator-panel">
     <div class="operator-panel-head">
       <div><p class="operator-eyebrow">Pagos y soportes</p><h2>Seguimiento económico</h2></div>
-      @if (isSettled) {
+      @if (isSettled()) {
         <a class="operator-outline" [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: code }">Ver pagos</a>
       } @else {
         <a class="operator-primary" [routerLink]="['/operator/reservations/payment']" [queryParams]="{ reservation: code }">Gestionar pago</a>
@@ -123,6 +123,8 @@
       </table>
     </div>
   </section>
+} @else if (loading()) {
+  <p class="operator-copy">Cargando reserva...</p>
 } @else {
   <header class="operator-topbar">
     <div><p class="operator-eyebrow">Consulta de reserva</p><h1>Detalle de reserva</h1></div>

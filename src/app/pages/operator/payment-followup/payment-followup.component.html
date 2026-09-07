@@ -8,19 +8,13 @@
     <p class="operator-eyebrow">Seguimiento de pago</p><h2>Contacto y estado del pago pendiente</h2>
     <div class="operator-form-grid">
       <label>Reserva<input readonly type="text" [value]="code ? '#' + code : ''" /></label>
-      <label>Cliente<input readonly type="text" [value]="reservation?.customer || record?.customer || ''" /></label>
-      <label>Modalidad de pago<input readonly type="text" [value]="reservation?.method || record?.method || ''" /></label>
-      <label>Total recibido<input readonly type="text" [value]="reservation?.paid || ''" /></label>
-      <label>Saldo pendiente<input readonly type="text" [value]="reservation?.balance || ''" /></label>
-      <label>Estado actual<input readonly type="text" [value]="reservation?.payment || record?.status || ''" /></label>
-      @if (!isSettled) {
-        <label class="operator-form-wide">Plazo/límite vigente<input readonly type="text" [value]="deadlineNote" /></label>
+      @if (!isSettled()) {
         <label class="operator-form-wide">
           Nota de seguimiento (obligatoria)
           <textarea
             required
             placeholder="Describe el contacto realizado con el cliente y el resultado"
-            [disabled]="notFound"
+            [disabled]="notFound() || submitting()"
             [value]="note()"
             (input)="note.set($any($event.target).value)"
           ></textarea>
@@ -31,8 +25,8 @@
   <p class="operator-form-feedback" [class.is-valid]="feedbackIsValid()">{{ feedback() }}</p>
   <div class="operator-form-actions">
     <a class="operator-outline" routerLink="/operator/payments">Volver a pagos</a>
-    @if (!isSettled) {
-      <button class="operator-primary" type="submit" [disabled]="notFound">Registrar seguimiento</button>
+    @if (!isSettled()) {
+      <button class="operator-primary" type="submit" [disabled]="notFound() || submitting()">Registrar seguimiento</button>
     }
   </div>
 </form>
@@ -41,10 +35,10 @@
   <div class="operator-panel-head"><div><p class="operator-eyebrow">Trazabilidad</p><h2>Historial de seguimientos</h2></div></div>
   <div class="operator-table-wrap">
     <table class="operator-table">
-      <thead><tr><th>Fecha</th><th>Hora</th><th>Actor</th><th>Nota</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Actor</th><th>Nota</th></tr></thead>
       <tbody>
         @for (entry of history(); track $index) {
-          <tr><td>{{ entry.date }}</td><td>{{ entry.time }}</td><td>{{ entry.actor }}</td><td>{{ entry.note }}</td></tr>
+          <tr><td>{{ entry.recordedAt | date: 'medium' }}</td><td>{{ entry.actorId }}</td><td>{{ entry.note }}</td></tr>
         }
       </tbody>
     </table>

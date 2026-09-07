@@ -8,14 +8,14 @@
     <p class="operator-eyebrow">Reserva</p><h2>Datos reservados</h2>
     <div class="operator-form-grid">
       <label>Reserva<input readonly type="text" [value]="code ? '#' + code : '—'" /></label>
-      <label>Cliente<input readonly type="text" [value]="reservation?.customer || '—'" /></label>
-      <label>Servicio<input readonly type="text" [value]="reservation?.service || '—'" /></label>
-      <label>Fecha<input readonly type="text" [value]="reservation?.date || '—'" /></label>
-      <label>Viajeros reservados<input readonly type="text" [value]="(reservation?.travelers || 0) + ' viajeros'" /></label>
+      <label>Cliente<input readonly type="text" [value]="reservation()?.customer || '—'" /></label>
+      <label>Servicio<input readonly type="text" [value]="reservation()?.service || '—'" /></label>
+      <label>Fecha<input readonly type="text" [value]="reservation()?.date || '—'" /></label>
+      <label>Viajeros reservados<input readonly type="text" [value]="(reservation()?.travelers || 0) + ' viajeros'" /></label>
     </div>
   </section>
 
-  @if (reservation) {
+  @if (reservation()) {
     <section class="operator-panel">
       <p class="operator-eyebrow">Ejecución real</p><h2>¿Se prestó el servicio?</h2>
       <div class="operator-form-grid">

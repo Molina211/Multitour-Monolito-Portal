@@ -1,8 +1,21 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { OperatorReservationService, PendingSupportRecord } from '../operator-reservation.service';
+import { OperatorReservationService } from '../operator-reservation.service';
 import { OperatorRoleService } from '../operator-role.service';
 
+interface PendingPaymentRow {
+  code: string;
+  customer: string;
+  method: string;
+  amount: string;
+  status: string;
+  action: 'validate' | 'follow-up';
+}
+
+// Fuente real: se deriva del mismo listado ya cargado por OperatorReservationService
+// (GET .../reservations), filtrando por paymentStatus/method - equivalente a
+// GET .../reservations/pending-support pero sin duplicar la carga ni el mapeo de nombres
+// de servicio, que ya resuelve ese mismo servicio.
 @Component({
   selector: 'app-operator-payments',
   standalone: true,
@@ -10,24 +23,34 @@ import { OperatorRoleService } from '../operator-role.service';
   templateUrl: './payments.component.html',
   styleUrl: './payments.component.css',
 })
-export class PaymentsComponent {
+export class PaymentsComponent implements OnInit {
   private readonly reservationService = inject(OperatorReservationService);
   readonly roleService = inject(OperatorRoleService);
 
-  pendingRecords = computed(() => this.reservationService.getPendingSupportRecords());
-  pendingCount = computed(() => this.pendingRecords().filter((record) => this.isPending(record)).length);
+  loading = this.reservationService.loading;
+
+  pendingRecords = computed<PendingPaymentRow[]>(() => {
+    const rows: PendingPaymentRow[] = [];
+    for (const r of this.reservationService.reservations()) {
+      if (r.payment === 'En validación') {
+        rows.push({ code: r.code, customer: r.customer, method: r.method, amount: r.balance, status: r.payment, action: 'validate' });
+      } else if (r.method === 'Abono' && r.payment !== 'Pagado' && r.statusClass !== 'is-cancelled') {
+        rows.push({ code: r.code, customer: r.customer, method: r.method, amount: r.balance, status: r.payment, action: 'follow-up' });
+      }
+    }
+    return rows;
+  });
+  pendingCount = computed(() => this.pendingRecords().length);
 
   // Restriccion base (PDR linea 114/554): el Colaborador operativo solo puede validar o
-  // rechazar soportes de transferencia cuando el tenant lo habilite expresamente para ese
-  // rol (deshabilitado por defecto en este entorno local).
+  // rechazar soportes de transferencia cuando el tenant lo habilite expresamente para ese rol.
   canValidateSupport = computed(() => this.roleService.isAdmin() || this.roleService.collaboratorCanValidateSupport());
 
-  // BUG corregido: para seguimiento (Abono), getPendingSupportRecords() ya filtra las
-  // reservas liquidadas (saldo $0, Pagado); toda fila de seguimiento que llega aqui es, por
-  // definicion, un pago real todavia pendiente, sin depender del texto de "status" (que
-  // puede coincidir por casualidad con un estado "resuelto" generico como "Parcial").
-  isPending(record: PendingSupportRecord): boolean {
-    if (record.action === 'follow-up') return true;
-    return this.reservationService.isPendingSupport(record);
+  ngOnInit(): void {
+    void this.reservationService.refresh();
+  }
+
+  isPending(_record: PendingPaymentRow): boolean {
+    return true;
   }
 }

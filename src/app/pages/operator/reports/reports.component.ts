@@ -1,11 +1,14 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { OperatorReportsService, ReportsDashboard, ReportsSummary } from '../operator-reports.service';
-import { MonthlyConsolidation, OperatorCashService } from '../operator-cash.service';
-import { OPERATOR_TODAY_DATE } from '../operator-reservation.service';
+import { MonthlyConsolidationResponse } from '../../../core/cash-api.service';
+import { OperatorCashService } from '../operator-cash.service';
+import { OperatorReservationService } from '../operator-reservation.service';
+import { formatCOP } from '../../../core/money.util';
 
-function formatCOP(value: number): string {
-  return `$${new Intl.NumberFormat('es-CO').format(Math.round(value))}`;
+function currentPeriod(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
 interface ReportLine {
@@ -15,28 +18,24 @@ interface ReportLine {
 }
 
 // AJUSTE 2: "Exportar reporte" genera un PDF real con EXACTAMENTE los mismos datos ya
-// mostrados en pantalla (los mismos objetos dashboard/summary/periods computados por el
-// componente), sin recalcular ni inventar nada nuevo. Todos los datos pertenecen
-// exclusivamente a este operador (no existe en esta pantalla ningun dato de otro tenant).
-function buildReportsLines(dashboard: ReportsDashboard, summary: ReportsSummary, periods: MonthlyConsolidation[]): ReportLine[] {
+// mostrados en pantalla, sin recalcular ni inventar nada nuevo.
+function buildReportsLines(dashboard: ReportsDashboard, summary: ReportsSummary, periods: MonthlyConsolidationResponse[]): ReportLine[] {
   const lines: ReportLine[] = [];
   lines.push({ text: 'Reporte operativo y económico - Multitour', size: 14, bold: true });
   lines.push({ text: `Generado: ${new Date().toLocaleString('es-CO')}`, size: 9 });
   lines.push({ text: '' });
   lines.push({ text: 'Resumen', size: 12, bold: true });
   lines.push({ text: `Ventas confirmadas: ${formatCOP(summary.confirmedSales)}` });
-  lines.push({ text: `Ingresos del período: ${formatCOP(summary.totalIngresos)}` });
-  lines.push({ text: `Costos operacionales: ${formatCOP(summary.totalCosts)}` });
   lines.push({ text: `Cancelaciones: ${summary.cancelledCount}` });
   lines.push({ text: '' });
   lines.push({ text: 'Dashboard diario (hoy)', size: 12, bold: true });
   lines.push({ text: `Reservas creadas hoy: ${dashboard.createdToday}` });
   lines.push({ text: `Pendientes de pago: ${dashboard.pendingPayment}` });
   lines.push({ text: `Confirmadas: ${dashboard.confirmed}` });
-  lines.push({ text: `Canceladas: ${dashboard.cancelled}` });
+  lines.push({ text: `Canceladas hoy: ${dashboard.cancelled}` });
   lines.push({ text: `Próximas a ejecutar: ${dashboard.upcomingExecutions}` });
   lines.push({ text: '' });
-  lines.push({ text: 'Reporte mensual', size: 12, bold: true });
+  lines.push({ text: 'Reporte mensual (Caja)', size: 12, bold: true });
   if (!periods.length) {
     lines.push({ text: 'Aún no hay cierres de caja registrados para consolidar el reporte mensual.' });
   } else {
@@ -57,16 +56,13 @@ function buildReportsLines(dashboard: ReportsDashboard, summary: ReportsSummary,
   return lines;
 }
 
-// Nombre sugerido: reporte-multitour-YYYY-MM.pdf, usando el periodo mas reciente ya
-// mostrado en el Reporte mensual (o la fecha de referencia del operador si aun no hay
-// ningun cierre de caja registrado).
-function buildReportsPdfFilename(periods: MonthlyConsolidation[]): string {
-  const period = periods.length ? periods[0].period : OPERATOR_TODAY_DATE.slice(0, 7);
+function buildReportsPdfFilename(periods: MonthlyConsolidationResponse[]): string {
+  const period = periods.length ? periods[0].period : currentPeriod();
   return `reporte-multitour-${period}.pdf`;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function buildReportsPdfDoc(JsPDF: any, dashboard: ReportsDashboard, summary: ReportsSummary, periods: MonthlyConsolidation[]): any {
+function buildReportsPdfDoc(JsPDF: any, dashboard: ReportsDashboard, summary: ReportsSummary, periods: MonthlyConsolidationResponse[]): any {
   const doc = new JsPDF();
   const marginLeft = 14;
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -93,7 +89,6 @@ declare global {
   }
 }
 
-// Se carga solo cuando se necesita (al exportar), no en cada pantalla del portal.
 function loadJsPdf(): Promise<any> {
   if (window.jspdf?.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
   return new Promise((resolve, reject) => {
@@ -112,21 +107,24 @@ function loadJsPdf(): Promise<any> {
   templateUrl: './reports.component.html',
   styleUrl: './reports.component.css',
 })
-export class ReportsComponent {
+export class ReportsComponent implements OnInit {
   private readonly reportsService = inject(OperatorReportsService);
   private readonly cashService = inject(OperatorCashService);
+  private readonly reservationService = inject(OperatorReservationService);
+
+  loading = this.reservationService.loading;
 
   dashboard = computed(() => this.reportsService.getDashboard());
   summary = computed(() => this.reportsService.getSummary());
 
   salesLabel = computed(() => formatCOP(this.summary().confirmedSales));
-  incomeLabel = computed(() => formatCOP(this.summary().totalIngresos));
-  costsLabel = computed(() => formatCOP(this.summary().totalCosts));
 
-  // RF-012 (linea 507): mismo calculo ya usado en Caja > Consolidación mensual, para que
-  // ambas pantallas muestren siempre los mismos periodos y valores.
-  periods = computed<MonthlyConsolidation[]>(() => this.cashService.getMonthlyConsolidation());
+  periods = this.cashService.consolidation;
   hasPeriods = computed(() => this.periods().length > 0);
+
+  async ngOnInit(): Promise<void> {
+    await Promise.all([this.reservationService.refresh(), this.cashService.refreshMonthlyConsolidation(currentPeriod())]);
+  }
 
   formatAmount(value: number): string {
     return formatCOP(value);

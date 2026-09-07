@@ -1,7 +1,8 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
-import { OPERATOR_CURRENT_TENANT_NAME, OperatorCollaboratorService } from '../operator-collaborator.service';
+import { CollaboratorApiService, CollaboratorResponse } from '../../../core/collaborator-api.service';
+import { SessionService } from '../../../core/session.service';
 
 @Component({
   selector: 'app-operator-collaborator-detail',
@@ -10,11 +11,29 @@ import { OPERATOR_CURRENT_TENANT_NAME, OperatorCollaboratorService } from '../op
   templateUrl: './collaborator-detail.component.html',
   styleUrl: './collaborator-detail.component.css',
 })
-export class CollaboratorDetailComponent {
+export class CollaboratorDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
-  private readonly collaboratorService = inject(OperatorCollaboratorService);
+  private readonly collaboratorApi = inject(CollaboratorApiService);
+  private readonly sessionService = inject(SessionService);
 
-  readonly tenantName = OPERATOR_CURRENT_TENANT_NAME;
+  readonly tenantName = this.sessionService.tenantId() || '';
   readonly id = this.route.snapshot.queryParamMap.get('id') || '';
-  readonly collaborator = this.collaboratorService.getById(this.id);
+
+  loading = signal(true);
+  collaborator = signal<CollaboratorResponse | null>(null);
+
+  ngOnInit(): void {
+    const tenantId = this.sessionService.tenantId();
+    if (!tenantId || !this.id) {
+      this.loading.set(false);
+      return;
+    }
+    this.collaboratorApi.getById(tenantId, this.id).subscribe({
+      next: (item) => {
+        this.collaborator.set(item);
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false),
+    });
+  }
 }

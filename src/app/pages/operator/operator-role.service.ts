@@ -1,4 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { ADMINISTRATOR_ROLE, OPERATIONAL_COLLABORATOR_ROLE } from '../../core/membership-role';
+import { SessionService } from '../../core/session.service';
 
 // Roles base confirmados en el PDR (seccion 14): Administrador y Colaborador operativo.
 // No se inventan permisos nuevos: el Colaborador operativo reutiliza las MISMAS pantallas
@@ -33,8 +35,21 @@ function readCollaboratorCanValidateSupport(): boolean {
 
 @Injectable({ providedIn: 'root' })
 export class OperatorRoleService {
-  private readonly roleSignal = signal<OperatorRole>(readStoredRole());
-  readonly role = this.roleSignal.asReadonly();
+  private readonly sessionService = inject(SessionService);
+
+  // Fuente heredada (localStorage), usada SOLO cuando todavia no hay sesion real (por
+  // ejemplo, navegacion directa en desarrollo sin pasar por /login). En cuanto existe una
+  // sesion real (SessionService, poblada por POST /api/tenants/{tenantId}/login), el rol
+  // real del JWT manda siempre sobre este valor manual - ya no se puede "elegir" ser
+  // Administrador o Colaborador si el Backend dice otra cosa.
+  private readonly manualRoleSignal = signal<OperatorRole>(readStoredRole());
+
+  readonly role = computed<OperatorRole>(() => {
+    const sessionRole = this.sessionService.role();
+    if (sessionRole === ADMINISTRATOR_ROLE) return 'admin';
+    if (sessionRole === OPERATIONAL_COLLABORATOR_ROLE) return 'colaborador';
+    return this.manualRoleSignal();
+  });
 
   private readonly collaboratorCanValidateSupportSignal = signal<boolean>(readCollaboratorCanValidateSupport());
   readonly collaboratorCanValidateSupport = this.collaboratorCanValidateSupportSignal.asReadonly();
@@ -49,19 +64,21 @@ export class OperatorRoleService {
   }
 
   isAdmin(): boolean {
-    return this.roleSignal() === 'admin';
+    return this.role() === 'admin';
   }
 
   isColaborador(): boolean {
-    return this.roleSignal() === 'colaborador';
+    return this.role() === 'colaborador';
   }
 
   roleLabel(): string {
     return this.isColaborador() ? 'Colaborador del operador' : 'Administrador del operador';
   }
 
+  // Solo tiene efecto visible mientras no exista sesion real (ver comentario de
+  // manualRoleSignal). Con sesion real, el signal computado `role` la ignora.
   setRole(role: OperatorRole): void {
-    this.roleSignal.set(role);
+    this.manualRoleSignal.set(role);
     try {
       localStorage.setItem(OPERATOR_ROLE_KEY, role);
     } catch {

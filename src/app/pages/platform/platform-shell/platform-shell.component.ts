@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { SessionService } from '../../../core/session.service';
 
 @Component({
   selector: 'app-platform-shell',
@@ -8,4 +9,11 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   templateUrl: './platform-shell.component.html',
   styleUrl: './platform-shell.component.css',
 })
-export class PlatformShellComponent {}
+export class PlatformShellComponent {
+  private readonly sessionService = inject(SessionService);
+
+  // BUG corregido: "Cerrar sesión" solo navegaba a /login sin invalidar la sesión real.
+  logout(): void {
+    this.sessionService.clear();
+  }
+}

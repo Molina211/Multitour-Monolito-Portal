@@ -8,20 +8,28 @@
     <div><p class="platform-eyebrow">Directorio</p><h2>Empresas operadoras</h2></div>
     <span class="platform-table-note">Cada operador mantiene su informacion y operacion aisladas dentro de Multitour.</span>
   </div>
-  <div class="platform-table-wrap">
-    <table class="platform-table">
-      <thead><tr><th>Operador</th><th>Identificador</th><th>Primer administrador</th><th>Estado</th><th></th></tr></thead>
-      <tbody>
-        @for (tenant of tenants(); track tenant.id) {
-          <tr>
-            <td><strong>{{ tenant.name }}</strong><small>Creado: {{ tenant.createdAt }}</small></td>
-            <td><code>{{ tenant.id }}</code></td>
-            <td>{{ tenant.adminName }}<small>{{ tenant.adminEmail }}</small></td>
-            <td><span class="platform-status" [class.is-active]="tenant.status === 'Activo'" [class.is-inactive]="tenant.status !== 'Activo'">{{ tenant.status }}</span></td>
-            <td><a class="platform-table-link" [routerLink]="['/platform/operators', tenant.id]">Ver detalle</a></td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
+
+  @if (loading()) {
+    <p class="platform-table-note">Cargando operadores...</p>
+  } @else if (error()) {
+    <p class="feedback is-error">{{ error() }}</p>
+  } @else if (tenants().length === 0) {
+    <p class="platform-table-note">Todavia no hay operadores registrados.</p>
+  } @else {
+    <div class="platform-table-wrap">
+      <table class="platform-table">
+        <thead><tr><th>Operador</th><th>Identificador</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+          @for (tenant of tenants(); track tenant.id) {
+            <tr>
+              <td><strong>{{ tenant.name }}</strong><small>Creado: {{ tenant.createdAt }}</small></td>
+              <td><code>{{ tenant.id }}</code></td>
+              <td><span class="platform-status" [class.is-active]="tenant.status === 'Activo'" [class.is-inactive]="tenant.status !== 'Activo'">{{ tenant.status }}</span></td>
+              <td><a class="platform-table-link" [routerLink]="['/platform/operators', tenant.id]">Ver detalle</a></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
 </section>

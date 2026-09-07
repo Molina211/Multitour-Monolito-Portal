@@ -8,23 +8,13 @@
   <section class="operator-panel">
     <p class="operator-eyebrow">Solicitud</p><h2>Información de la devolución</h2>
     <div class="operator-detail-list">
-      <div><span>Reserva relacionada</span><strong>#{{ request.reservationCode }}</strong></div>
+      <div><span>Reserva relacionada</span><strong>#{{ request.code }}</strong></div>
       <div><span>Cliente</span><strong>{{ request.customer }}</strong></div>
-      <div><span>Motivo / causal</span><strong>{{ request.reason }}</strong></div>
-      <div><span>Observación / soporte administrativo</span><strong>{{ request.administrativeNote || 'Sin observaciones registradas.' }}</strong></div>
-      <div><span>Monto</span><strong>{{ request.amount }}</strong></div>
-      <div><span>Motivo de la decisión</span><strong>{{ request.authorizationNote || request.rejectionReason || 'No aplica' }}</strong></div>
-      <div><span>Responsable</span><strong>{{ request.executedBy || request.rejectedBy || request.authorizedBy || 'Sin responsable asignado' }}</strong></div>
-      <div><span>Fecha</span><strong>{{ request.executedAt ? (request.executedAt | date: 'medium') : request.requestedAt }}</strong></div>
-      <div><span>Método de devolución/salida</span><strong>{{ request.exitMethod || 'No aplica' }}</strong></div>
-      <div><span>Movimiento de caja asociado</span><strong>{{ request.cashMovementRef || 'No aplica' }}</strong></div>
-      <div><span>Estado actual</span><strong>{{ request.status }}</strong></div>
+      <div><span>Motivo / causal</span><strong>{{ request.refundOrigin?.causal }}</strong></div>
+      <div><span>Monto</span><strong>{{ request.refundOrigin?.potentialAmount }}</strong></div>
+      <div><span>Estado actual</span><strong>{{ request.refundOrigin?.status }}</strong></div>
     </div>
   </section>
-
-  @if (isPendingAuthorization() && isPendingCalculation()) {
-    <p class="operator-access-note">No se puede autorizar esta devolución hasta que la condición comercial de devolución esté definida y parametrizada en el PDR. Sí puede rechazarse por causal administrativa.</p>
-  }
 
   @if (showDecisionPanel()) {
     <section class="operator-panel">
@@ -36,7 +26,7 @@
             <textarea
               required
               placeholder="Describe el motivo de la autorización o el rechazo"
-              [disabled]="decisionDone()"
+              [disabled]="decisionDone() || decisionSubmitting()"
               [value]="decisionNote()"
               (input)="decisionNote.set($any($event.target).value)"
             ></textarea>
@@ -44,8 +34,8 @@
         </div>
         <p class="operator-form-feedback" [class.is-valid]="decisionFeedbackIsValid()">{{ decisionFeedback() }}</p>
         <div class="operator-form-actions">
-          <button class="operator-outline" type="button" [disabled]="decisionDone()" (click)="reject()">Rechazar devolución</button>
-          <button class="operator-primary" type="button" [disabled]="authorizeDisabled()" [title]="authorizeTitle()" (click)="authorize()">Autorizar devolución</button>
+          <button class="operator-outline" type="button" [disabled]="decisionDone() || decisionSubmitting()" (click)="reject()">Rechazar devolución</button>
+          <button class="operator-primary" type="button" [disabled]="decisionDone() || decisionSubmitting()" (click)="authorize()">Autorizar devolución</button>
         </div>
       </form>
     </section>
@@ -58,39 +48,22 @@
         <div class="operator-form-grid">
           <label>
             ¿Hubo salida efectiva de dinero?
-            <select required [disabled]="executeDone()" [value]="outflow()" (change)="outflow.set($any($event.target).value)">
+            <select required [disabled]="executeDone() || executeSubmitting()" [value]="outflow()" (change)="outflow.set($any($event.target).value)">
               <option value="">Selecciona una opción</option>
-              <option value="si">Sí, se realizó la salida de dinero</option>
+              <option value="si">Sí, ya se realizó la salida de dinero (registrada al solicitar la devolución)</option>
               <option value="no">No, queda como saldo a favor pendiente</option>
             </select>
           </label>
-          @if (outflow() === 'si') {
-            <label>
-              Método de devolución/salida
-              <select [disabled]="executeDone()" [value]="exitMethod()" (change)="exitMethod.set($any($event.target).value)">
-                <option value="Transferencia">Transferencia</option>
-                <option value="Efectivo">Efectivo</option>
-              </select>
-            </label>
-            <label class="operator-form-wide">
-              Movimiento de caja asociado
-              <input
-                type="text"
-                placeholder="Referencia del movimiento de caja"
-                [disabled]="executeDone()"
-                [value]="cashMovementRef()"
-                (input)="cashMovementRef.set($any($event.target).value)"
-              />
-            </label>
-          }
         </div>
         <p class="operator-form-feedback" [class.is-valid]="executeFeedbackIsValid()">{{ executeFeedback() }}</p>
         <div class="operator-form-actions">
-          <button class="operator-primary" type="submit" [disabled]="executeDone()">Registrar ejecución de devolución</button>
+          <button class="operator-primary" type="submit" [disabled]="executeDone() || executeSubmitting()">Confirmar</button>
         </div>
       </form>
     </section>
   }
+} @else if (loading()) {
+  <p class="operator-copy">Cargando solicitud...</p>
 } @else {
   <p class="operator-access-note">No se encontró la solicitud seleccionada.</p>
 }

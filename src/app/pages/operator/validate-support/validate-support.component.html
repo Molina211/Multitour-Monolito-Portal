@@ -9,24 +9,10 @@
     <p class="operator-eyebrow">Soporte de pago</p><h2>{{ heading }}</h2>
     <div class="operator-form-grid">
       <label>Reserva<input readonly type="text" [value]="code ? '#' + code : ''" /></label>
-      <label>Cliente<input readonly type="text" [value]="record?.customer || ''" /></label>
-      <label>Modalidad<input readonly type="text" [value]="record?.method || ''" /></label>
-      <label>Valor recibido<input readonly type="text" [value]="record?.amount || ''" /></label>
-      <label>Estado actual<input readonly type="text" [value]="currentStatus()" /></label>
+      <label>Estado actual<input readonly type="text" [value]="status()" /></label>
       <div class="operator-form-wide">
         <span>Soporte de pago</span>
-        <p class="operator-copy">{{ supportFilenameLabel }}</p>
-        <div>
-          @if (supportType === 'image') {
-            <img [src]="supportImagePlaceholder" alt="Vista previa del soporte de pago" style="max-width:220px;border-radius:10px" />
-          }
-          @if (supportType === 'document') {
-            <button type="button" (click)="toggleDocument()">Ver soporte</button>
-            @if (documentOpen()) {
-              <img [src]="supportDocumentPlaceholder" alt="Documento de soporte abierto" style="max-width:220px;border-radius:6px" />
-            }
-          }
-        </div>
+        <p class="operator-copy">{{ supportFilenameLabel() }}</p>
       </div>
       @if (!readOnlyForRole) {
         <label class="operator-form-wide">

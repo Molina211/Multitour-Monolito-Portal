@@ -1,0 +1,48 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Cancelación o modificación</p><h1>Registrar solicitud de devolución</h1></div>
+  <a class="operator-outline" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: code }">Volver a la reserva</a>
+</header>
+
+<section class="operator-panel">
+  <p class="operator-eyebrow">Origen</p><h2>Reserva relacionada</h2>
+  <div class="operator-detail-list">
+    <div><span>Reserva</span><strong>{{ code ? '#' + code : '—' }}</strong></div>
+    <div><span>Cliente</span><strong>{{ reservation()?.customer || '—' }}</strong></div>
+    <div><span>Estado de la reserva</span><strong>{{ reservation()?.status || '—' }}</strong></div>
+    <div><span>Valor pagado o validado</span><strong>{{ reservation()?.paid || '—' }}</strong></div>
+  </div>
+</section>
+
+<section class="operator-panel">
+  <p class="operator-eyebrow">Solicitud</p><h2>Datos de la solicitud de devolución</h2>
+  <div class="operator-form-grid">
+    <label class="operator-form-wide">
+      Motivo de la solicitud de devolución (obligatorio)
+      <textarea
+        required
+        placeholder="Describe el motivo de la solicitud de devolución"
+        [disabled]="disabled()"
+        [value]="motive()"
+        (input)="motive.set($any($event.target).value)"
+      ></textarea>
+    </label>
+    <label>
+      Monto a devolver (obligatorio)
+      <input type="number" min="1" [disabled]="disabled()" [value]="amount()" (input)="amount.set($any($event.target).value)" />
+    </label>
+    <label>
+      Método de devolución
+      <select [disabled]="disabled()" [value]="method()" (change)="method.set($any($event.target).value)">
+        <option value="Transferencia">Transferencia</option>
+        <option value="Efectivo">Efectivo</option>
+      </select>
+    </label>
+    <label>Estado inicial de la solicitud<input readonly type="text" value="Pendiente de autorización" /></label>
+  </div>
+</section>
+
+<p class="operator-form-feedback" [class.is-valid]="feedbackIsValid()">{{ feedback() }}</p>
+<div class="operator-form-actions">
+  <a class="operator-outline" [routerLink]="['/operator/reservations/detail']" [queryParams]="{ reservation: code }">Volver a la reserva</a>
+  <button class="operator-primary" type="button" [disabled]="disabled() || submitting()" (click)="register()">{{ submitting() ? 'Registrando...' : 'Registrar solicitud de devolución' }}</button>
+</div>

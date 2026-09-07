@@ -1,0 +1,19 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Gestión comercial</p><h1>Crear reserva</h1></div>
+  <a class="operator-outline" routerLink="/operator/reservations">Volver a reservas</a>
+</header>
+
+<section class="operator-panel">
+  <p class="operator-eyebrow">Bloqueado por Backend</p>
+  <h2>El equipo del operador no puede crear reservas a nombre de un cliente</h2>
+  <p class="operator-copy">
+    El endpoint real (<code>POST /api/tenants/{{ '{tenantId}' }}/reservations</code>) exige una sesión JWT y toma
+    siempre el identificador del cliente desde ese mismo token — no acepta un <code>customerId</code> distinto en el
+    cuerpo de la solicitud. Por diseño del Backend, crear una reserva es una acción exclusiva del propio Cliente
+    autenticado desde el Portal Cliente (Reservar tour).
+  </p>
+  <p class="operator-copy">
+    Si el Backend llega a exponer en el futuro un endpoint para que Administrador/Colaborador registren una reserva
+    a nombre de un cliente, esta pantalla se conectará a él. Por ahora no se simula ese flujo.
+  </p>
+</section>

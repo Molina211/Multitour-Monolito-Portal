@@ -1,0 +1,13 @@
+/* El modelo de establecimiento asociado solo tiene UNA imagen (no hay "side" como en el
+   dato inventado que se retiro): la principal ocupa las dos columnas del grid existente
+   (.travel-detail-gallery) en vez de dejar una columna vacia. */
+.gastronomy-detail-gallery-main {
+  grid-column: 1 / -1;
+  overflow: hidden;
+}
+
+.gastronomy-detail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

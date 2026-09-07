@@ -1,0 +1,37 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Control de cobro</p><h1>Solicitudes de devolución</h1></div>
+  <a class="operator-outline" routerLink="/operator/payments">Volver a pagos</a>
+</header>
+<section class="operator-hero operator-hero-compact">
+  <div><p class="operator-eyebrow">Devoluciones monetarias</p><h2>Autorización y ejecución trazables.</h2></div>
+  <p>Toda devolución registra causal, monto, responsable, fecha y su relación con la reserva y con el movimiento de caja correspondiente.</p>
+</section>
+<section class="operator-panel">
+  <div class="operator-panel-head">
+    <div><p class="operator-eyebrow">Solicitudes</p><h2>Solicitudes registradas</h2></div>
+    <span class="operator-status is-pending">{{ requests().length }} solicitud{{ requests().length === 1 ? '' : 'es' }}</span>
+  </div>
+  @if (loading()) {
+    <p class="operator-copy">Cargando solicitudes...</p>
+  }
+  <div class="operator-table-wrap">
+    <table class="operator-table">
+      <thead><tr><th>Reserva</th><th>Cliente</th><th>Motivo</th><th>Monto</th><th>Estado</th><th>Acción</th></tr></thead>
+      <tbody>
+        @for (request of requests(); track request.code) {
+          <tr>
+            <td><a class="operator-reservation-link" [routerLink]="['/operator/payments/refunds/detail']" [queryParams]="{ reservation: request.code }">#{{ request.code }}</a></td>
+            <td>{{ request.customer }}</td>
+            <td>{{ request.refundOrigin?.causal }}</td>
+            <td>{{ request.refundOrigin?.potentialAmount }}</td>
+            <td><span class="operator-status is-pending">{{ request.refundOrigin?.status }}</span></td>
+            <td><a [routerLink]="['/operator/payments/refunds/detail']" [queryParams]="{ reservation: request.code }">{{ actionLabel(request) }}</a></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    @if (requests().length === 0 && !loading()) {
+      <p class="operator-copy">No hay solicitudes de devolución registradas.</p>
+    }
+  </div>
+</section>

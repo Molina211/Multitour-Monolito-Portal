@@ -1,0 +1,49 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Control de cobro</p><h1>Registrar seguimiento</h1></div>
+  <a class="operator-outline" routerLink="/operator/payments">Volver a pagos</a>
+</header>
+
+<form class="operator-reservation-form" (submit)="$event.preventDefault(); registerFollowup()">
+  <section class="operator-panel">
+    <p class="operator-eyebrow">Seguimiento de pago</p><h2>Contacto y estado del pago pendiente</h2>
+    <div class="operator-form-grid">
+      <label>Reserva<input readonly type="text" [value]="code ? '#' + code : ''" /></label>
+      @if (!isSettled()) {
+        <label class="operator-form-wide">
+          Nota de seguimiento (obligatoria)
+          <textarea
+            required
+            placeholder="Describe el contacto realizado con el cliente y el resultado"
+            [disabled]="notFound() || submitting()"
+            [value]="note()"
+            (input)="note.set($any($event.target).value)"
+          ></textarea>
+        </label>
+      }
+    </div>
+  </section>
+  <p class="operator-form-feedback" [class.is-valid]="feedbackIsValid()">{{ feedback() }}</p>
+  <div class="operator-form-actions">
+    <a class="operator-outline" routerLink="/operator/payments">Volver a pagos</a>
+    @if (!isSettled()) {
+      <button class="operator-primary" type="submit" [disabled]="notFound() || submitting()">Registrar seguimiento</button>
+    }
+  </div>
+</form>
+
+<section class="operator-panel">
+  <div class="operator-panel-head"><div><p class="operator-eyebrow">Trazabilidad</p><h2>Historial de seguimientos</h2></div></div>
+  <div class="operator-table-wrap">
+    <table class="operator-table">
+      <thead><tr><th>Fecha</th><th>Actor</th><th>Nota</th></tr></thead>
+      <tbody>
+        @for (entry of history(); track $index) {
+          <tr><td>{{ entry.recordedAt | date: 'medium' }}</td><td>{{ entry.actorId }}</td><td>{{ entry.note }}</td></tr>
+        }
+      </tbody>
+    </table>
+    @if (!hasHistory()) {
+      <p class="operator-copy">Aún no se han registrado seguimientos para esta reserva.</p>
+    }
+  </div>
+</section>

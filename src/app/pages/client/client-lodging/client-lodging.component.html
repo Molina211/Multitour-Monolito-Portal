@@ -1,0 +1,64 @@
+<main class="travel-tours-shell">
+  <header class="travel-tours-header">
+    <a class="travel-tours-brand" routerLink="/">{{ tenantName() }}</a>
+    <nav class="travel-tours-nav" aria-label="Navegación principal del cliente">
+      <a routerLink="/client/tours">Explorar</a>
+      <a class="is-active" routerLink="/client/lodging">Alojamiento</a>
+      <a routerLink="/client/gastronomy">Gastronomía</a>
+      <a routerLink="/client">Reservas</a>
+      <a routerLink="/client/profile">Perfil</a>
+    </nav>
+  </header>
+
+  <section class="travel-tours-topbar">
+    <a class="travel-tours-back" routerLink="/client">
+      <span aria-hidden="true">&larr;</span>
+      <span>Volver al panel cliente</span>
+    </a>
+
+    <div class="travel-tours-search-row">
+      <input type="search" placeholder="Buscar hoteles..." [value]="searchTerm()" (input)="onSearchInput($event)" />
+      <button type="button" (click)="onSearchInput($event)">Buscar</button>
+    </div>
+  </section>
+
+  @if (loading()) {
+    <p class="travel-dashboard-copy">Cargando hoteles...</p>
+  } @else if (loadError()) {
+    <div class="travel-catalog-empty-state">
+      <strong>No fue posible cargar los hoteles asociados.</strong>
+      <p>Intenta nuevamente más tarde.</p>
+    </div>
+  } @else {
+    <section class="travel-restaurant-grid" aria-label="Hoteles asociados disponibles">
+      @for (hotel of filteredHotels(); track hotel.id) {
+        <article class="travel-tour-card">
+          <div class="travel-tour-media lodging-media-one">
+            @if (hotel.image) {
+              <img class="gastronomy-card-image" [src]="hotel.image" alt="Imagen de {{ hotel.name }}" />
+            }
+          </div>
+          <div class="travel-tour-body">
+            <strong>{{ hotel.name }}</strong>
+            <span class="travel-tour-location">Hotel asociado</span>
+            @if (hotel.description) {
+              <p class="travel-dashboard-copy">{{ hotel.description }}</p>
+            }
+          </div>
+        </article>
+      } @empty {
+        @if (hotels().length === 0) {
+          <p class="travel-dashboard-copy">No hay hoteles asociados activos en este momento.</p>
+        }
+      }
+    </section>
+
+    @if (showSearchEmpty()) {
+      <div class="travel-catalog-empty-state">
+        <strong>No encontramos resultados con esa búsqueda.</strong>
+        <p>Prueba con otra búsqueda.</p>
+        <button type="button" (click)="clearSearch()">Limpiar búsqueda</button>
+      </div>
+    }
+  }
+</main>

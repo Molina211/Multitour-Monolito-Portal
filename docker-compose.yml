@@ -1,0 +1,10 @@
+services:
+  portal:
+    build: .
+    ports:
+      - "8080:80"
+    # Permite que nginx.conf (location /api/) resuelva host.docker.internal hacia el
+    # Backend publicado en el puerto 8081 del host. Docker Desktop ya lo define nativo;
+    # esta entrada lo hace funcionar tambien en Docker Engine/Linux (host-gateway).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

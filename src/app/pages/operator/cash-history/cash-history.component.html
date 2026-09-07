@@ -1,0 +1,70 @@
+<header class="operator-topbar">
+  <div><p class="operator-eyebrow">Control económico</p><h1>Historial de caja</h1></div>
+  <a class="operator-outline" routerLink="/operator/cash">Volver a caja</a>
+</header>
+<p class="operator-access-note">
+  Todo cierre queda conservado sin borrarse. Una corrección posterior al cierre solo puede registrarla el Administrador
+  del operador, con justificación obligatoria y trazabilidad, y nunca sobrescribe los valores originales del cierre.
+</p>
+
+@if (loading()) {
+  <p class="operator-copy">Cargando historial...</p>
+} @else if (!hasClosures()) {
+  <p class="operator-copy">Aún no se han registrado cierres de caja.</p>
+}
+
+@for (closure of closures(); track closure.cashRegisterId) {
+  <section class="operator-panel">
+    <div class="operator-panel-head">
+      <div><p class="operator-eyebrow">Cierre {{ closure.businessDate }}</p><h2>Total: {{ formatAmount(closure.totalAmount) }}</h2></div>
+      <span class="operator-status" [class.is-confirmed]="closure.status === 'CERRADA'">{{ closure.status === 'CERRADA' ? 'Cerrado' : 'Abierto' }}</span>
+    </div>
+    <div class="operator-detail-list">
+      <div><span>Base</span><strong>{{ formatAmount(closure.baseAmount) }}</strong></div>
+      <div><span>Ingresos</span><strong>{{ formatAmount(totalsFor(closure).ingresos) }}</strong></div>
+      <div><span>Pagos operacionales</span><strong>{{ formatAmount(totalsFor(closure).pagosOperacionales) }}</strong></div>
+      <div><span>Gastos</span><strong>{{ formatAmount(totalsFor(closure).gastos) }}</strong></div>
+      @if (closure.closedBy) {
+        <div><span>Cerrado por</span><strong>{{ closure.closedBy }}</strong></div>
+      }
+      @if (closure.closedAt) {
+        <div><span>Fecha y hora de cierre</span><strong>{{ formatDateTime(closure.closedAt) }}</strong></div>
+      }
+    </div>
+    <p class="operator-eyebrow">Correcciones posteriores</p>
+    @if (closure.corrections.length) {
+      <div class="operator-table-wrap">
+        <table class="operator-table">
+          <thead><tr><th>Fecha</th><th>Responsable</th><th>Justificación</th></tr></thead>
+          <tbody>
+            @for (correction of closure.corrections; track $index) {
+              <tr>
+                <td>{{ formatDateTime(correction.appliedAt) }}</td>
+                <td>{{ correction.appliedBy }}</td>
+                <td>{{ correction.justification }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="operator-copy">Sin correcciones registradas para este cierre.</p>
+    }
+    @if (roleService.isAdmin() && closure.status === 'CERRADA') {
+      <form (submit)="onCorrectionSubmit($event, closure)" novalidate>
+        <div class="operator-form-grid">
+          <label class="operator-form-wide">
+            Justificación de la corrección (obligatoria)
+            <textarea name="justification" required placeholder="Describe la corrección operativa excepcional y su justificación"></textarea>
+          </label>
+        </div>
+        <p class="operator-form-feedback" [class.is-valid]="correctionFeedbackFor(closure.cashRegisterId).valid">
+          {{ correctionFeedbackFor(closure.cashRegisterId).message }}
+        </p>
+        <div class="operator-form-actions">
+          <button class="operator-outline" type="submit">Registrar corrección</button>
+        </div>
+      </form>
+    }
+  </section>
+}

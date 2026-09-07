@@ -1,0 +1,121 @@
+<main class="travel-detail-shell">
+  <header class="travel-tours-header">
+    <a class="travel-tours-brand" routerLink="/">{{ tenantName() }}</a>
+    <nav class="travel-tours-nav" aria-label="Navegación principal del cliente">
+      <a class="is-active" routerLink="/client/tours">Explorar</a>
+      <a routerLink="/client/lodging">Alojamiento</a>
+      <a routerLink="/client/gastronomy">Gastronomía</a>
+      <a routerLink="/client">Reservas</a>
+      <a routerLink="/client/profile">Perfil</a>
+    </nav>
+  </header>
+
+  <section class="travel-detail-topbar">
+    <a class="travel-tours-back" routerLink="/client/tours">
+      <span aria-hidden="true">&larr;</span>
+      <span>Volver a tours</span>
+    </a>
+    <p class="travel-detail-screen-title">Detalle del tour</p>
+  </section>
+
+  @if (loading()) {
+    <p class="travel-dashboard-copy">Cargando tour...</p>
+  } @else if (loadError()) {
+    <section class="travel-detail-intro">
+      <div class="travel-detail-copy">
+        <h1>No fue posible cargar este tour</h1>
+        <div class="travel-detail-description">Intenta nuevamente más tarde.</div>
+      </div>
+    </section>
+  } @else {
+    @if (tour(); as item) {
+      <div class="travel-detail-layout">
+        <div class="travel-detail-main">
+          <section class="travel-detail-intro">
+            <div class="travel-detail-copy">
+              <div class="travel-detail-copy-head">
+                <div>
+                  <h1>{{ item.name }}</h1>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="travel-detail-section">
+            <h2>Vigencia, capacidad y restricciones</h2>
+            <div class="travel-detail-info-grid">
+              <div class="travel-detail-info-card">
+                <span>Vigencia</span>
+                <strong>{{ startLabel() }} - {{ endLabel() }}</strong>
+              </div>
+              @if (item.capacity != null) {
+                <div class="travel-detail-info-card">
+                  <span>Capacidad</span>
+                  <strong>Hasta {{ item.capacity }} viajeros</strong>
+                </div>
+              }
+              @if (item.restrictions) {
+                <div class="travel-detail-info-card">
+                  <span>Restricciones</span>
+                  <strong>{{ item.restrictions }}</strong>
+                </div>
+              }
+            </div>
+          </section>
+
+          @if (item.route) {
+            <section class="travel-detail-section">
+              <h2>Ruta</h2>
+              <p>{{ item.route }}</p>
+            </section>
+          }
+
+          @if (item.policy) {
+            <section class="travel-detail-section travel-detail-conditions-card">
+              <h2>Condiciones de reserva</h2>
+              <ul>
+                <li>{{ item.policy }}</li>
+              </ul>
+            </section>
+          }
+        </div>
+
+        <aside class="travel-detail-summary-card">
+          @if (item.image) {
+            <div class="travel-detail-summary-media" [style.background-image]="'url(' + item.image + ')'"></div>
+          }
+
+          <span class="travel-detail-sticky-eyebrow">Resumen comercial</span>
+
+          <div class="travel-detail-price">
+            <strong>Desde: ${{ item.price | number: '1.0-0' }}</strong>
+          </div>
+
+          <div class="travel-detail-info-grid">
+            <div class="travel-detail-info-card">
+              <span>Vigencia</span>
+              <strong>{{ startLabel() }} - {{ endLabel() }}</strong>
+            </div>
+            @if (item.capacity != null) {
+              <div class="travel-detail-info-card">
+                <span>Capacidad</span>
+                <strong>Hasta {{ item.capacity }} viajeros</strong>
+              </div>
+            }
+          </div>
+
+          <p aria-live="polite">Vigente del {{ startLabel() }} al {{ endLabel() }}.</p>
+
+          <a class="travel-detail-book-button" [routerLink]="['/client/tours/booking']" [queryParams]="{ tour: item.catalogItemId }">Reservar tour</a>
+        </aside>
+      </div>
+    } @else {
+      <section class="travel-detail-intro">
+        <div class="travel-detail-copy">
+          <h1>Tour no disponible</h1>
+          <div class="travel-detail-description">Este tour ya no está activo, vigente, o no existe.</div>
+        </div>
+      </section>
+    }
+  }
+</main>

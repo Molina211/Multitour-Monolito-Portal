@@ -1,0 +1,10 @@
+/* .travel-tour-media ya es position:relative con background-size:cover (ver styles.css):
+   la imagen real del hotel (cuando existe) se superpone llenando ese mismo contenedor,
+   igual que el fondo generico que reemplaza. Mismo patron ya usado en client-restaurants. */
+.gastronomy-card-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
